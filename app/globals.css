@@ -146,6 +146,64 @@ a {
   font-weight: 700;
 }
 
+.fund-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 12px;
+  padding: 5px;
+  background: rgba(255, 254, 250, 0.82);
+  border: 1px solid rgba(222, 218, 208, 0.9);
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(31, 36, 31, 0.06);
+  backdrop-filter: blur(16px);
+}
+
+.fund-switch button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 10px 11px;
+  color: #687069;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.fund-switch button > span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.fund-switch button > strong {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.fund-switch button > small {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: #929790;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fund-switch button.active {
+  color: #f9f6eb;
+  background:
+    linear-gradient(125deg, rgba(215, 139, 45, 0.18), transparent 62%),
+    var(--oil);
+  box-shadow: 0 6px 14px rgba(30, 38, 31, 0.18);
+}
+
+.fund-switch button.active > small {
+  color: rgba(249, 246, 235, 0.58);
+}
+
 .hero-card,
 .card {
   margin-top: 12px;
@@ -161,6 +219,26 @@ a {
     linear-gradient(138deg, rgba(255, 255, 255, 0.04), transparent 46%),
     linear-gradient(148deg, #171d19 0%, #28342c 58%, #35483a 100%);
   box-shadow: 0 22px 50px rgba(26, 32, 27, 0.22);
+}
+
+.hero-card.brent {
+  background:
+    linear-gradient(138deg, rgba(255, 255, 255, 0.045), transparent 46%),
+    linear-gradient(148deg, #131d1c 0%, #233836 58%, #31504b 100%);
+}
+
+.hero-card.brent .eyebrow {
+  color: #8fc6bb;
+}
+
+.hero-card.brent .headline-value strong {
+  color: #a8ddce;
+}
+
+.hero-card.brent .oil-mark {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), transparent 38%),
+    linear-gradient(150deg, #74a99d, #315e55);
 }
 
 .hero-card::before {

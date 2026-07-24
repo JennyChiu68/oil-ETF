@@ -28,15 +28,19 @@ async function render() {
   );
 }
 
-test("server-renders the production USO report", async () => {
+test("server-renders the production USO and BNO report", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>原油ETF持仓报告｜USO<\/title>/i);
+  assert.match(
+    html,
+    /<title>原油ETF持仓报告｜WTI USO・Brent BNO<\/title>/i,
+  );
   assert.match(html, /原油ETF持仓报告/);
-  assert.match(html, /当前原油名义敞口/);
+  assert.match(html, /当前名义原油敞口/);
+  assert.match(html, /美国布伦特原油基金/);
   assert.match(html, /2,628\.03/);
   assert.match(html, /资产净值变化一览/);
   assert.match(html, /溢折价监控/);
@@ -48,40 +52,73 @@ test("server-renders the production USO report", async () => {
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
 
-test("frozen snapshot is internally consistent and source-backed", async () => {
-  const payload = JSON.parse(
+test("both frozen snapshots are internally consistent and source-backed", async () => {
+  for (const symbol of ["uso", "bno"]) {
+    const payload = JSON.parse(
+      await readFile(
+        new URL(`../public/data/${symbol}-snapshot.json`, import.meta.url),
+        "utf8",
+      ),
+    );
+
+    assert.equal(payload.fund.symbol, symbol.toUpperCase());
+    assert.equal(payload.fund.asOfDate, payload.history.dateTo);
+    assert.equal(payload.history.records, payload.history.rows.length);
+    assert.ok(payload.history.rows.length >= 1_200);
+    assert.ok(payload.current.oilBarrelEquivalent > 5_000_000);
+    assert.ok(payload.current.netAssets > 500_000_000);
+    assert.ok(
+      payload.holdings.some(
+        (holding) => holding.holdingType === "Futures",
+      ),
+    );
+    for (const holding of payload.holdings.filter(
+      (item) => item.holdingType === "Futures",
+    )) {
+      assert.equal(
+        holding.marketValue,
+        holding.quantity * 1_000 * holding.price,
+      );
+    }
+    assert.ok(
+      Math.abs(
+        payload.current.nav * payload.current.sharesOutstanding -
+          payload.current.netAssets,
+      ) /
+        payload.current.netAssets <
+        0.001,
+    );
+
+    for (let index = 0; index < payload.history.rows.length; index += 1) {
+      const row = payload.history.rows[index];
+      assert.ok(row.nav > 0);
+      assert.ok(row.netAssets > 0);
+      if (index > 0) {
+        assert.ok(row.date > payload.history.rows[index - 1].date);
+      }
+    }
+
+    assert.ok(
+      payload.sources.every((source) => source.url.startsWith("https://")),
+    );
+  }
+
+  const bno = JSON.parse(
     await readFile(
-      new URL("../public/data/uso-snapshot.json", import.meta.url),
+      new URL("../public/data/bno-snapshot.json", import.meta.url),
       "utf8",
     ),
   );
-
-  assert.equal(payload.fund.symbol, "USO");
-  assert.equal(payload.fund.asOfDate, payload.history.dateTo);
-  assert.equal(payload.history.records, payload.history.rows.length);
-  assert.ok(payload.history.rows.length >= 1_200);
-  assert.ok(payload.current.oilBarrelEquivalent > 20_000_000);
-  assert.ok(payload.current.netAssets > 1_000_000_000);
-  assert.ok(
-    payload.holdings.some(
-      (holding) =>
-        holding.holdingType === "Futures" &&
-        holding.name.includes("WTI CRUDE FUTURE"),
-    ),
+  const bnoFutures = bno.holdings.filter(
+    (holding) => holding.holdingType === "Futures",
   );
-
-  for (let index = 0; index < payload.history.rows.length; index += 1) {
-    const row = payload.history.rows[index];
-    assert.ok(row.nav > 0);
-    assert.ok(row.netAssets > 0);
-    if (index > 0) {
-      assert.ok(row.date > payload.history.rows[index - 1].date);
-    }
-  }
-
-  assert.ok(
-    payload.sources.every((source) => source.url.startsWith("https://")),
+  const contractualBarrels = bnoFutures.reduce(
+    (sum, holding) => sum + holding.quantity * 1_000,
+    0,
   );
+  assert.equal(bno.current.swapBarrelEquivalent, 0);
+  assert.equal(bno.current.barrelEquivalentType, "contractual");
+  assert.equal(bno.current.oilBarrelEquivalent, contractualBarrels);
 });
 
 test("manual refresh script does not persist the public API token", async () => {
@@ -93,8 +130,13 @@ test("manual refresh script does not persist the public API token", async () => 
     new URL("../public/data/uso-snapshot.json", import.meta.url),
     "utf8",
   );
+  const bnoSnapshot = await readFile(
+    new URL("../public/data/bno-snapshot.json", import.meta.url),
+    "utf8",
+  );
 
-  assert.match(script, /historicalnav\/USO\/inception-today/);
-  assert.match(script, /holding\/USO\/full/);
+  assert.match(script, /historicalnav\/\$\{symbol\}\/inception-today/);
+  assert.match(script, /holding\/\$\{symbol\}\/full/);
   assert.doesNotMatch(snapshot, /Bearer |var token|eyJhbGciOi/);
+  assert.doesNotMatch(bnoSnapshot, /Bearer |var token|eyJhbGciOi/);
 });

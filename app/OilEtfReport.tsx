@@ -33,6 +33,9 @@ type Snapshot = {
     exchange: string;
     inceptionDate: string;
     asOfDate: string;
+    benchmark: string;
+    benchmarkZh: string;
+    contractVenue: string;
   };
   current: {
     nav: number;
@@ -51,6 +54,7 @@ type Snapshot = {
     oilNotional: number;
     oilExposurePctOfNav: number;
     collateralValue: number;
+    barrelEquivalentType: string;
   };
   holdings: Holding[];
   history: {
@@ -71,6 +75,7 @@ type Snapshot = {
   }>;
 };
 
+type FundSymbol = "USO" | "BNO";
 type ChartMetric = "nav" | "netAssets";
 type ChartRange = "1m" | "1y" | "3y" | "5y";
 type AnalysisPeriod = "month" | "year" | "5y" | "custom";
@@ -304,7 +309,32 @@ function HistoryCanvas({
   );
 }
 
-export function OilEtfReport({ snapshot }: { snapshot: Snapshot }) {
+export function OilEtfReport({
+  snapshots,
+}: {
+  snapshots: Record<FundSymbol, Snapshot>;
+}) {
+  const [activeSymbol, setActiveSymbol] = useState<FundSymbol>("USO");
+
+  return (
+    <OilEtfFundReport
+      key={activeSymbol}
+      snapshot={snapshots[activeSymbol]}
+      activeSymbol={activeSymbol}
+      onSymbolChange={setActiveSymbol}
+    />
+  );
+}
+
+function OilEtfFundReport({
+  snapshot,
+  activeSymbol,
+  onSymbolChange,
+}: {
+  snapshot: Snapshot;
+  activeSymbol: FundSymbol;
+  onSymbolChange: (symbol: FundSymbol) => void;
+}) {
   const latestDate = snapshot.history.dateTo;
   const [chartRange, setChartRange] = useState<ChartRange>("1y");
   const [chartMetric, setChartMetric] = useState<ChartMetric>("netAssets");
@@ -525,11 +555,37 @@ export function OilEtfReport({ snapshot }: { snapshot: Snapshot }) {
           <span className="topbar-live">冻结版</span>
         </header>
 
-        <section className="hero-card" id="top">
+        <nav className="fund-switch" aria-label="原油ETF品种切换">
+          {(["USO", "BNO"] as FundSymbol[]).map((symbol) => {
+            const isActive = activeSymbol === symbol;
+            const label = symbol === "USO" ? "WTI" : "Brent";
+            return (
+              <button
+                type="button"
+                key={symbol}
+                className={isActive ? "active" : ""}
+                aria-pressed={isActive}
+                onClick={() => onSymbolChange(symbol)}
+              >
+                <span>{label}</span>
+                <strong>{symbol}</strong>
+                <small>{symbol === "USO" ? "美国原油基金" : "美国布伦特原油基金"}</small>
+              </button>
+            );
+          })}
+        </nav>
+
+        <section
+          className={`hero-card ${activeSymbol === "BNO" ? "brent" : "wti"}`}
+          id="top"
+        >
           <div className="hero-glow" aria-hidden="true" />
           <div className="hero-heading">
             <div>
-              <p className="eyebrow">USO · WTI OIL EXPOSURE</p>
+              <p className="eyebrow">
+                {snapshot.fund.symbol} · {snapshot.fund.benchmark.toUpperCase()} OIL
+                EXPOSURE
+              </p>
               <h1>原油ETF持仓报告</h1>
               <p className="source-line">
                 公布机构：{snapshot.fund.name}（USCF）
@@ -540,7 +596,12 @@ export function OilEtfReport({ snapshot }: { snapshot: Snapshot }) {
             </div>
           </div>
 
-          <div className="headline-label">当前原油名义敞口</div>
+          <div className="headline-label">
+            当前名义原油敞口
+            {snapshot.current.barrelEquivalentType === "estimated"
+              ? " · 含掉期估算"
+              : " · 合约规格换算"}
+          </div>
           <div className="headline-value">
             <strong>
               {formatNumber(
@@ -551,13 +612,13 @@ export function OilEtfReport({ snapshot }: { snapshot: Snapshot }) {
             <span>万桶等值</span>
           </div>
           <div className="hero-meta">
-            <span>原油ETF总持仓口径</span>
+            <span>名义桶等值 · 非实物库存</span>
             <span>时间：{formatDateCn(snapshot.fund.asOfDate)}</span>
           </div>
 
           <div className="hero-kpis">
             <div>
-              <span>期货敞口</span>
+              <span>期货桶等值</span>
               <strong>
                 {formatNumber(
                   snapshot.current.futuresBarrelEquivalent / 10_000,
@@ -567,14 +628,23 @@ export function OilEtfReport({ snapshot }: { snapshot: Snapshot }) {
               </strong>
             </div>
             <div>
-              <span>掉期敞口</span>
-              <strong>
-                {formatNumber(
-                  snapshot.current.swapBarrelEquivalent / 10_000,
-                  1,
-                )}
-                万桶等值
-              </strong>
+              <span>
+                {snapshot.current.swapBarrelEquivalent > 0
+                  ? "掉期估算"
+                  : "掉期持仓"}
+              </span>
+              {snapshot.current.swapBarrelEquivalent > 0 ? (
+                <strong>
+                  约
+                  {formatNumber(
+                    snapshot.current.swapBarrelEquivalent / 10_000,
+                    1,
+                  )}
+                  万桶
+                </strong>
+              ) : (
+                <strong>当前无</strong>
+              )}
             </div>
             <div>
               <span>资产敞口率</span>
@@ -664,19 +734,15 @@ export function OilEtfReport({ snapshot }: { snapshot: Snapshot }) {
               <small>基金份额</small>
             </div>
             <div className="summary-box">
-              <span>当日申赎</span>
-              <strong
-                className={
-                  snapshot.current.sharesCreatedRedeemed >= 0 ? "up" : "down"
-                }
-              >
-                {formatSigned(
-                  snapshot.current.sharesCreatedRedeemed / 10_000,
+              <span>申赎记录规模</span>
+              <strong>
+                {formatNumber(
+                  Math.abs(snapshot.current.sharesCreatedRedeemed) / 10_000,
                   0,
                 )}
                 万
               </strong>
-              <small>份</small>
+              <small>份 · 不解读方向</small>
             </div>
           </div>
         </section>
@@ -1172,9 +1238,12 @@ export function OilEtfReport({ snapshot }: { snapshot: Snapshot }) {
             <div>
               <strong>当前主力持仓：{latestFutures?.ticker ?? "--"}</strong>
               <p>
-                {latestFutures?.name ?? "WTI原油期货"}，共{" "}
+                {latestFutures?.name ??
+                  `${snapshot.fund.benchmark}原油期货`}
+                ，共{" "}
                 {formatNumber(latestFutures?.quantity ?? 0, 0)}
-                手。期货ETF需定期展期，收益可能与WTI现货价格出现偏差。
+                手。期货型ETP需定期展期，收益可能与
+                {snapshot.fund.benchmarkZh}现货价格出现偏差。
               </p>
             </div>
           </div>
@@ -1221,7 +1290,9 @@ export function OilEtfReport({ snapshot }: { snapshot: Snapshot }) {
         </section>
 
         <footer className="report-footer">
-          <strong>USO 原油ETF持仓报告</strong>
+          <strong>
+            {snapshot.fund.symbol} · {snapshot.fund.benchmarkZh}ETF持仓报告
+          </strong>
           <p>
             数据截至 {snapshot.fund.asOfDate} · 历史区间{" "}
             {snapshot.history.dateFrom}—{snapshot.history.dateTo} ·{" "}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAtUtc": "2026-07-24T02:09:50.362Z",
+  "generatedAtUtc": "2026-07-24T02:42:05.942Z",
   "fund": {
     "symbol": "USO",
     "name": "United States Oil Fund, LP",
@@ -8,7 +8,10 @@
     "sponsor": "United States Commodity Funds, LLC",
     "exchange": "NYSE Arca",
     "inceptionDate": "2006-04-10",
-    "asOfDate": "2026-07-23"
+    "asOfDate": "2026-07-23",
+    "benchmark": "WTI",
+    "benchmarkZh": "WTI原油",
+    "contractVenue": "NYMEX"
   },
   "current": {
     "nav": 140.34,
@@ -26,7 +29,8 @@
     "swapBarrelEquivalent": 3173275.73,
     "oilNotional": 2389218304.42,
     "oilExposurePctOfNav": 1.0241,
-    "collateralValue": 1847586859.1
+    "collateralValue": 1847586859.1,
+    "barrelEquivalentType": "estimated"
   },
   "holdings": [
     {
@@ -11394,7 +11398,7 @@
     ]
   },
   "methodology": {
-    "headline": "桶等值 = WTI期货合约数量×1,000桶/手 + 掉期名义数量。该指标表示油价相关名义敞口，并非基金持有的实物原油库存。",
+    "headline": "名义桶等值 = WTI期货合约数量×1,000桶/手 + 掉期披露数量的标准化估算。期货部分为合约规格直接换算，掉期部分为估算；均不代表实物库存。",
     "netAssets": "历史总资产净值（Net Assets）和单位净值（NAV）均来自USCF官方历史净值接口；总资产变化包含市场价格变动、申赎及费用影响，不等同于净资金流。",
     "dataMode": "本文件是一次性冻结快照，不会在页面端轮询。运行 npm run data:refresh 可人工生成新快照。"
   },
