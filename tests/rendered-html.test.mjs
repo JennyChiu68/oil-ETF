@@ -41,16 +41,17 @@ test("server-renders the production USO and BNO report", async () => {
   assert.match(html, /原油ETF持仓报告/);
   assert.match(html, /当前名义原油敞口/);
   assert.match(html, /美国布伦特原油基金/);
-  assert.match(html, /2,628\.03/);
-  assert.match(html, /资产净值变化一览/);
+  assert.match(html, /2,591\.62/);
+  assert.match(html, /持仓变化一览/);
   assert.match(html, /按桶/);
   assert.match(html, /按美元/);
-  assert.match(html, /-159\.70/);
-  assert.match(html, /并非历史逐日真实合约增减/);
+  assert.match(html, /-327\.39/);
+  assert.match(html, /已剔除油价涨跌/);
+  assert.match(html, /申赎驱动的持仓变化估算/);
   assert.ok(
-    html.indexOf("<h2>资产净值变化一览</h2>") <
+    html.indexOf("<h2>持仓变化一览</h2>") <
       html.indexOf("<h2>当前持仓</h2>"),
-    "资产变化应排在当前持仓之前",
+    "持仓变化应排在当前持仓之前",
   );
   assert.match(html, /2026年9月到期/);
   assert.match(html, /原油敞口构成/);
@@ -78,9 +79,11 @@ test("both frozen snapshots are internally consistent and source-backed", async 
     );
 
     assert.equal(payload.fund.symbol, symbol.toUpperCase());
+    assert.equal(payload.schemaVersion, 2);
     assert.equal(payload.fund.asOfDate, payload.history.dateTo);
     assert.equal(payload.history.records, payload.history.rows.length);
     assert.ok(payload.history.rows.length >= 1_200);
+    assert.ok(payload.history.shareInferenceMaxResidualPctOfBasket < 0.1);
     assert.ok(payload.current.oilBarrelEquivalent > 5_000_000);
     assert.ok(payload.current.netAssets > 500_000_000);
     assert.ok(
@@ -88,14 +91,58 @@ test("both frozen snapshots are internally consistent and source-backed", async 
         (holding) => holding.holdingType === "Futures",
       ),
     );
-    for (const holding of payload.holdings.filter(
+    const futuresHoldings = payload.holdings.filter(
       (item) => item.holdingType === "Futures",
-    )) {
+    );
+    for (const holding of futuresHoldings) {
       assert.equal(
         holding.marketValue,
         holding.quantity * 1_000 * holding.price,
       );
+      assert.equal(holding.barrelEquivalent, holding.quantity * 1_000);
     }
+    const futuresBarrels = futuresHoldings.reduce(
+      (sum, holding) => sum + holding.barrelEquivalent,
+      0,
+    );
+    const futuresNotional = futuresHoldings.reduce(
+      (sum, holding) => sum + holding.marketValue,
+      0,
+    );
+    const futuresReferencePrice = futuresNotional / futuresBarrels;
+    assert.ok(
+      Math.abs(
+        payload.current.futuresReferencePrice - futuresReferencePrice,
+      ) < 0.0001,
+    );
+    const swapBarrels = payload.holdings
+      .filter((holding) => holding.holdingType === "Swap")
+      .reduce(
+        (sum, holding) =>
+          sum + holding.marketValue / futuresReferencePrice,
+        0,
+      );
+    assert.ok(
+      Math.abs(payload.current.swapBarrelEquivalent - swapBarrels) < 0.01,
+    );
+    assert.ok(
+      Math.abs(
+        payload.current.oilBarrelEquivalent -
+          futuresBarrels -
+          swapBarrels,
+      ) < 0.01,
+    );
+    assert.ok(
+      Math.abs(
+        payload.current.barrelsPerShare -
+          payload.current.oilBarrelEquivalent /
+            payload.current.sharesOutstanding,
+      ) < 0.00000001,
+    );
+    assert.equal(
+      payload.current.creationBasketShares,
+      symbol === "uso" ? 100_000 : 50_000,
+    );
     assert.ok(
       Math.abs(
         payload.current.nav * payload.current.sharesOutstanding -
@@ -111,7 +158,40 @@ test("both frozen snapshots are internally consistent and source-backed", async 
       assert.ok(row.netAssets > 0);
       if (index > 0) {
         assert.ok(row.date > payload.history.rows[index - 1].date);
+        assert.equal(
+          row.sharesOutstandingChange,
+          row.sharesOutstandingEstimate -
+            payload.history.rows[index - 1].sharesOutstandingEstimate,
+        );
+        assert.ok(
+          Math.abs(
+            row.barrelEquivalentChange -
+              row.sharesOutstandingChange *
+                payload.current.barrelsPerShare,
+          ) < 0.02,
+        );
       }
+      assert.equal(
+        Math.abs(
+          (row.sharesOutstandingEstimate -
+            payload.current.sharesOutstanding) %
+            payload.current.creationBasketShares,
+        ),
+        0,
+      );
+      assert.ok(
+        Math.abs(
+          row.sharesOutstandingEstimate - row.netAssets / row.nav,
+        ) <
+          payload.current.creationBasketShares / 2,
+      );
+      assert.ok(
+        Math.abs(
+          row.oilBarrelEquivalentEstimate -
+            row.sharesOutstandingEstimate *
+              payload.current.barrelsPerShare,
+        ) < 0.2,
+      );
     }
 
     assert.ok(
@@ -119,14 +199,30 @@ test("both frozen snapshots are internally consistent and source-backed", async 
     );
     assert.match(
       payload.methodology.assetChangeBarrels,
-      /不代表历史逐日真实合约增减/,
+      /剔除油价涨跌/,
     );
 
     const latest = payload.history.rows.at(-1);
-    const latestBarrelEquivalentChange =
-      (latest.netAssetsChange * payload.current.oilBarrelEquivalent) /
-      payload.current.netAssets;
-    assert.ok(Number.isFinite(latestBarrelEquivalentChange));
+    assert.equal(
+      latest.sharesOutstandingEstimate,
+      payload.current.sharesOutstanding,
+    );
+    assert.ok(
+      Math.abs(
+        latest.oilBarrelEquivalentEstimate -
+          payload.current.oilBarrelEquivalent,
+      ) < 0.01,
+    );
+    assert.ok(Number.isFinite(latest.barrelEquivalentChange));
+    assert.ok(
+      payload.history.rows.some(
+        (row) =>
+          Math.abs(row.netAssetsChange) > 1_000_000 &&
+          row.sharesOutstandingChange === 0 &&
+          row.barrelEquivalentChange === 0,
+      ),
+      `${symbol.toUpperCase()}应能剔除只有资产价格变化、没有申赎的交易日`,
+    );
   }
 
   const bno = JSON.parse(
@@ -163,6 +259,8 @@ test("manual refresh script does not persist the public API token", async () => 
 
   assert.match(script, /historicalnav\/\$\{symbol\}\/inception-today/);
   assert.match(script, /holding\/\$\{symbol\}\/full/);
+  assert.match(script, /creationBasketShares/);
+  assert.match(script, /futuresReferencePrice/);
   assert.doesNotMatch(snapshot, /Bearer |var token|eyJhbGciOi/);
   assert.doesNotMatch(bnoSnapshot, /Bearer |var token|eyJhbGciOi/);
 });
@@ -191,7 +289,16 @@ test("change matrix excludes the first observation outside the selected interval
     const matrixChange = rows
       .slice(1)
       .reduce((sum, row) => sum + row.netAssetsChange, 0);
+    const intervalBarrelChange =
+      rows.at(-1).oilBarrelEquivalentEstimate -
+      rows[0].oilBarrelEquivalentEstimate;
+    const matrixBarrelChange = rows
+      .slice(1)
+      .reduce((sum, row) => sum + row.barrelEquivalentChange, 0);
 
     assert.ok(Math.abs(intervalChange - matrixChange) < 0.01);
+    assert.ok(
+      Math.abs(intervalBarrelChange - matrixBarrelChange) < 0.1,
+    );
   }
 });

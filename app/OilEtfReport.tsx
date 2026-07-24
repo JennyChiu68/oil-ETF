@@ -10,6 +10,10 @@ type HistoryRow = {
   netAssets: number;
   netAssetsChange: number;
   netAssetsChangePct: number;
+  sharesOutstandingEstimate: number;
+  sharesOutstandingChange: number;
+  oilBarrelEquivalentEstimate: number;
+  barrelEquivalentChange: number;
 };
 
 type Holding = {
@@ -21,6 +25,7 @@ type Holding = {
   marketValue: number | null;
   weight: number | null;
   holdingType: string;
+  barrelEquivalent: number | null;
 };
 
 type Snapshot = {
@@ -51,6 +56,9 @@ type Snapshot = {
     oilBarrelEquivalent: number;
     futuresBarrelEquivalent: number;
     swapBarrelEquivalent: number;
+    futuresReferencePrice: number | null;
+    barrelsPerShare: number;
+    creationBasketShares: number;
     oilNotional: number;
     oilExposurePctOfNav: number;
     collateralValue: number;
@@ -61,6 +69,8 @@ type Snapshot = {
     dateFrom: string;
     dateTo: string;
     records: number;
+    shareInferenceMaxResidual: number;
+    shareInferenceMaxResidualPctOfBasket: number;
     rows: HistoryRow[];
   };
   methodology: {
@@ -139,11 +149,17 @@ function formatHundredMillion(value: number, digits = 2) {
   return `${formatNumber(value / 100_000_000, digits)}亿美元`;
 }
 
-function formatQuantity(value: number, type: string) {
+function formatQuantity(
+  value: number,
+  type: string,
+  barrelEquivalent: number | null,
+) {
   if (type === "Futures") {
     return `${formatNumber(value, 0)}手 · ${formatNumber(value / 10, 2)}万桶`;
   }
-  if (type === "Swap") return `${formatNumber(value / 10_000, 2)} 万桶等值`;
+  if (type === "Swap" && barrelEquivalent !== null) {
+    return `约${formatNumber(barrelEquivalent / 10_000, 2)}万桶等值`;
+  }
   return formatUsd(value);
 }
 
@@ -371,8 +387,6 @@ function OilEtfFundReport({
     end: snapshot.history.dateTo,
   });
   const [visibleDays, setVisibleDays] = useState(12);
-  const barrelEquivalentPerUsd =
-    snapshot.current.oilBarrelEquivalent / snapshot.current.netAssets;
 
   const chartRows = useMemo(() => {
     const start = chartStartDate(latestDate, chartRange);
@@ -411,14 +425,15 @@ function OilEtfFundReport({
       row,
       value:
         analysisUnit === "barrels"
-          ? (row.netAssetsChange * barrelEquivalentPerUsd) / 10_000
+          ? row.barrelEquivalentChange / 10_000
           : row.netAssetsChange / 100_000_000,
     }));
     const first = analysisRows[0];
     const last = analysisRows.at(-1) ?? first;
     const net =
       analysisUnit === "barrels"
-        ? ((last.netAssets - first.netAssets) * barrelEquivalentPerUsd) /
+        ? (last.oilBarrelEquivalentEstimate -
+            first.oilBarrelEquivalentEstimate) /
           10_000
         : (last.netAssets - first.netAssets) / 100_000_000;
     const up = daily
@@ -435,11 +450,7 @@ function OilEtfFundReport({
       biggestDown: sorted[0] ?? null,
       biggestUp: sorted.at(-1) ?? null,
     };
-  }, [
-    analysisRows,
-    analysisUnit,
-    barrelEquivalentPerUsd,
-  ]);
+  }, [analysisRows, analysisUnit]);
 
   const matrixYears = useMemo(
     () =>
@@ -486,8 +497,7 @@ function OilEtfFundReport({
           analysisUnit === "barrels"
             ? group.rows.reduce(
                 (sum, row) =>
-                  sum +
-                  (row.netAssetsChange * barrelEquivalentPerUsd) / 10_000,
+                  sum + row.barrelEquivalentChange / 10_000,
                 0,
               )
             : group.rows.reduce(
@@ -530,7 +540,6 @@ function OilEtfFundReport({
     activeMatrixYear,
     analysisRows,
     analysisUnit,
-    barrelEquivalentPerUsd,
     matrixMode,
   ]);
 
@@ -550,14 +559,10 @@ function OilEtfFundReport({
           row,
           value:
             analysisUnit === "barrels"
-              ? (row.netAssetsChange * barrelEquivalentPerUsd) / 10_000
+              ? row.barrelEquivalentChange / 10_000
               : row.netAssetsChange / 100_000_000,
         })),
-    [
-      analysisRows,
-      analysisUnit,
-      barrelEquivalentPerUsd,
-    ],
+    [analysisRows, analysisUnit],
   );
   const dailyMax = Math.max(
     ...dailyRows.map((item) => Math.abs(item.value)),
@@ -752,10 +757,18 @@ function OilEtfFundReport({
         <section className="card analysis-card">
           <div className="section-heading analysis-heading">
             <div>
-              <p className="section-kicker">ASSET CHANGE</p>
-              <h2>资产净值变化一览</h2>
+              <p className="section-kicker">
+                {analysisUnit === "barrels"
+                  ? "POSITION CHANGE"
+                  : "ASSET CHANGE"}
+              </p>
+              <h2>
+                {analysisUnit === "barrels"
+                  ? "持仓变化一览"
+                  : "资产净值变化一览"}
+              </h2>
             </div>
-            <div className="unit-switch" aria-label="资产变化计价单位">
+            <div className="unit-switch" aria-label="变化数据计价单位">
               <button
                 type="button"
                 className={analysisUnit === "barrels" ? "active" : ""}
@@ -931,8 +944,7 @@ function OilEtfFundReport({
             })}
           </div>
           <p className="inline-note">
-            按桶为资产变化的折算桶等值，采用当前组合“名义桶数 /
-            总净资产”统一换算；并非历史逐日真实合约增减。切换按美元可查看USCF官方资产变化原值。
+            按桶先用官方总净资产÷NAV反推流通份额，按官方申赎篮子取整后，再乘当前每份名义桶数；已剔除油价涨跌对资产净值的影响。切换按美元可查看USCF官方资产变化原值。
           </p>
         </section>
 
@@ -940,7 +952,11 @@ function OilEtfFundReport({
           <div className="section-heading">
             <div>
               <p className="section-kicker">DAILY DETAIL</p>
-              <h2>区间日变化</h2>
+              <h2>
+                {analysisUnit === "barrels"
+                  ? "区间持仓日变化"
+                  : "区间资产日变化"}
+              </h2>
             </div>
             <div className="daily-heading-tools">
               <span className="date-badge">{PERIOD_LABELS[analysisPeriod]}</span>
@@ -1040,7 +1056,7 @@ function OilEtfFundReport({
             </button>
           ) : null}
           <p className="inline-note">
-            桶数为资产净值变化的单位换算，包含油价、申赎、抵押品收益和费用影响，不代表基金当日实际买卖的原油桶数。
+            桶数为申赎驱动的持仓变化估算，不含展期或主动调仓造成的桶数变化，也不代表实物原油库存。
           </p>
         </section>
 
@@ -1157,6 +1173,7 @@ function OilEtfFundReport({
                         {formatQuantity(
                           holding.quantity,
                           holding.holdingType,
+                          holding.barrelEquivalent,
                         )}
                       </td>
                       <td>

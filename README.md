@@ -6,10 +6,16 @@
 
 - 当前持仓：USCF 官方 USO / BNO 期货、掉期、现金与等价物持仓
 - 历史数据：USCF 官方 USO / BNO 近 5 年每日 NAV 与总资产净值
-- 当前指标：桶等值名义敞口、原油名义市值、NAV、总资产、流通份额、申赎、溢折价
+- 当前指标：桶等值名义敞口、申赎驱动的持仓变化估算、原油名义市值、NAV、总资产、流通份额、申赎、溢折价
 - 数据模式：静态冻结快照；页面端不会轮询
 
-`桶等值`是油价相关名义敞口，不是实物原油库存。总资产净值变化包含市场价格、申赎、抵押品收益和费用影响，不等同于净资金流。
+## 桶等值算法
+
+- 期货：合约数量 × 1,000 桶/手，直接采用 CME（WTI）或 ICE（Brent）的标准合约规格。
+- 掉期：官方披露的掉期名义市值 ÷ 同日基金期货持仓的桶数加权结算价。掉期的披露数量不是天然的“桶”，因此不再直接按一份等于一桶处理。
+- 历史持仓变化：每日总净资产 ÷ NAV 反推流通份额，以当前官方流通份额为锚，再按官方最小申赎篮子取整（USO 100,000 份；BNO 50,000 份）。每日份额增减 × 当前每份名义桶数，得到申赎驱动的持仓桶数变化估算。
+
+这套算法会把“油价上涨但基金份额没变”的日期识别为持仓基本不变，避免把资产升值误判成增持。历史桶数仍是估算，因为 USCF 公开接口只提供最新持仓，没有可回溯的逐日合约明细；它不包含展期或主动调仓造成的桶数变化，也不代表实物原油库存。切换“按美元”时展示的仍是 USCF 官方总资产净值变化原值。
 
 ## 本地运行
 
@@ -45,6 +51,8 @@ npm run lint
 - [USCF USO Holdings](https://www.uscfinvestments.com/holdings/uso)
 - [USCF USO Product Page](https://www.uscfinvestments.com/uso)
 - [USO 2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/1327068/000110465926021501/uso-20251231x10k.htm)
+- [CME WTI Crude Oil Futures Contract Specs](https://www.cmegroup.com/markets/energy/crude-oil/light-sweet-crude.contractSpecs.html)
 - [USCF BNO Holdings](https://www.uscfinvestments.com/holdings/bno)
 - [USCF BNO Product Page](https://www.uscfinvestments.com/bno)
 - [BNO 2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/1472494/000110465926021521/bno-20251231x10k.htm)
+- [ICE Brent Crude Futures Contract Specs](https://www.ice.com/products/219/Brent-Crude-Futures)

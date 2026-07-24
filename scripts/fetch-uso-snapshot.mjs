@@ -18,6 +18,9 @@ const FUNDS = [
     benchmark: "WTI",
     benchmarkZh: "WTI原油",
     contractVenue: "NYMEX",
+    creationBasketShares: 100_000,
+    contractSpecUrl:
+      "https://www.cmegroup.com/markets/energy/crude-oil/light-sweet-crude.contractSpecs.html",
     secUrl:
       "https://www.sec.gov/Archives/edgar/data/1327068/000110465926021501/uso-20251231x10k.htm",
   },
@@ -28,6 +31,9 @@ const FUNDS = [
     benchmark: "Brent",
     benchmarkZh: "Brent原油",
     contractVenue: "ICE Futures Europe",
+    creationBasketShares: 50_000,
+    contractSpecUrl:
+      "https://www.ice.com/products/219/Brent-Crude-Futures",
     secUrl:
       "https://www.sec.gov/Archives/edgar/data/1472494/000110465926021521/bno-20251231x10k.htm",
   },
@@ -97,7 +103,7 @@ async function buildFundSnapshot(config, token) {
   const asOfDate = isoDate(daily.displaydate);
   const fiveYearStart = new Date(`${asOfDate}T00:00:00Z`);
   fiveYearStart.setUTCFullYear(fiveYearStart.getUTCFullYear() - 5);
-  const historyRows = history
+  const baseHistoryRows = history
     .filter((row) => new Date(row.date) >= fiveYearStart && row.navTotal > 0)
     .map((row, index, filtered) => {
       const prior = filtered[index - 1];
@@ -118,7 +124,7 @@ async function buildFundSnapshot(config, token) {
       };
     });
 
-  const holdings = holdingsPayload
+  const rawHoldings = holdingsPayload
     .filter((row) => row.possessionname === "Hold")
     .map((row) => ({
       category: holdingCategory(row),
@@ -131,15 +137,38 @@ async function buildFundSnapshot(config, token) {
       holdingType: row.holdingtype,
     }));
 
+  const futuresPositions = rawHoldings.filter(
+    (row) => row.holdingType === "Futures",
+  );
+  const futuresBarrelEquivalent = futuresPositions
+    .reduce((sum, row) => sum + row.quantity * 1000, 0);
+  const futuresNotional = futuresPositions.reduce(
+    (sum, row) => sum + (row.marketValue || 0),
+    0,
+  );
+  const futuresReferencePrice =
+    futuresBarrelEquivalent > 0
+      ? futuresNotional / futuresBarrelEquivalent
+      : null;
+  const holdings = rawHoldings.map((row) => ({
+    ...row,
+    barrelEquivalent:
+      row.holdingType === "Futures"
+        ? row.quantity * 1000
+        : row.holdingType === "Swap" &&
+            futuresReferencePrice &&
+            row.marketValue !== null
+          ? row.marketValue / futuresReferencePrice
+          : null,
+  }));
   const oilPositions = holdings.filter(
     (row) => row.holdingType === "Futures" || row.holdingType === "Swap",
   );
-  const futuresBarrelEquivalent = oilPositions
-    .filter((row) => row.holdingType === "Futures")
-    .reduce((sum, row) => sum + row.quantity * 1000, 0);
   const swapBarrelEquivalent = oilPositions
     .filter((row) => row.holdingType === "Swap")
-    .reduce((sum, row) => sum + row.quantity, 0);
+    .reduce((sum, row) => sum + (row.barrelEquivalent || 0), 0);
+  const oilBarrelEquivalent =
+    futuresBarrelEquivalent + swapBarrelEquivalent;
   const oilNotional = oilPositions.reduce(
     (sum, row) => sum + (row.marketValue || 0),
     0,
@@ -154,9 +183,48 @@ async function buildFundSnapshot(config, token) {
         row.category === "现金及等价物" || row.category === "美国国债",
     )
     .reduce((sum, row) => sum + (row.marketValue || 0), 0);
+  const sharesOutstanding = round(daily.so, 0);
+  const barrelsPerShare =
+    sharesOutstanding > 0 ? oilBarrelEquivalent / sharesOutstanding : 0;
+  let priorSharesOutstandingEstimate = null;
+  const historyRows = baseHistoryRows.map((row) => {
+    const rawSharesOutstanding = row.netAssets / row.nav;
+    const sharesOutstandingEstimate =
+      sharesOutstanding +
+      Math.round(
+        (rawSharesOutstanding - sharesOutstanding) /
+          config.creationBasketShares,
+      ) *
+        config.creationBasketShares;
+    const sharesOutstandingChange =
+      priorSharesOutstandingEstimate === null
+        ? 0
+        : sharesOutstandingEstimate - priorSharesOutstandingEstimate;
+    priorSharesOutstandingEstimate = sharesOutstandingEstimate;
+
+    return {
+      ...row,
+      sharesOutstandingEstimate: round(sharesOutstandingEstimate, 0),
+      sharesOutstandingChange: round(sharesOutstandingChange, 0),
+      oilBarrelEquivalentEstimate: round(
+        sharesOutstandingEstimate * barrelsPerShare,
+        2,
+      ),
+      barrelEquivalentChange: round(
+        sharesOutstandingChange * barrelsPerShare,
+        2,
+      ),
+    };
+  });
+  const shareInferenceMaxResidual = Math.max(
+    ...historyRows.map((row) =>
+      Math.abs(row.sharesOutstandingEstimate - row.netAssets / row.nav),
+    ),
+    0,
+  );
 
   const snapshot = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAtUtc: new Date().toISOString(),
     fund: {
       symbol,
@@ -175,18 +243,21 @@ async function buildFundSnapshot(config, token) {
       navChange: round(daily.navchange, 2),
       navChangePct: round(daily.navpercent, 8),
       netAssets: round(daily.navtotal, 2),
-      sharesOutstanding: round(daily.so, 0),
+      sharesOutstanding,
       sharesCreatedRedeemed: round(daily.cr, 0),
       marketPrice: round(daily.marketvalue, 2),
       premiumDiscountPct: round(daily.premiumpercent, 8),
       bid: round(daily.bid, 2),
       ask: round(daily.ask, 2),
-      oilBarrelEquivalent: round(
-        futuresBarrelEquivalent + swapBarrelEquivalent,
-        2,
-      ),
+      oilBarrelEquivalent: round(oilBarrelEquivalent, 2),
       futuresBarrelEquivalent: round(futuresBarrelEquivalent, 2),
       swapBarrelEquivalent: round(swapBarrelEquivalent, 2),
+      futuresReferencePrice:
+        futuresReferencePrice === null
+          ? null
+          : round(futuresReferencePrice, 4),
+      barrelsPerShare: round(barrelsPerShare, 8),
+      creationBasketShares: config.creationBasketShares,
       oilNotional: round(oilNotional, 2),
       oilExposurePctOfNav: round(oilWeight, 8),
       collateralValue: round(collateralValue, 2),
@@ -198,17 +269,22 @@ async function buildFundSnapshot(config, token) {
       dateFrom: historyRows[0]?.date,
       dateTo: historyRows.at(-1)?.date,
       records: historyRows.length,
+      shareInferenceMaxResidual: round(shareInferenceMaxResidual, 2),
+      shareInferenceMaxResidualPctOfBasket: round(
+        shareInferenceMaxResidual / config.creationBasketShares,
+        8,
+      ),
       rows: historyRows,
     },
     methodology: {
       headline:
         swapBarrelEquivalent > 0
-          ? `名义桶等值 = ${config.benchmark}期货合约数量×1,000桶/手 + 掉期披露数量的标准化估算。期货部分为合约规格直接换算，掉期部分为估算；均不代表实物库存。`
+          ? `当前名义桶等值 = ${config.benchmark}期货合约数量×1,000桶/手 + 掉期名义市值÷同日基金期货持仓的桶数加权结算价。期货部分为合约规格直接换算，掉期部分为价格折算；均不代表实物库存。`
           : `名义桶等值 = ${config.benchmark}期货合约数量×1,000桶/手。当前持仓不含掉期，桶数可按交易所标准合约规格精确换算，但不代表基金持有实物原油。`,
       netAssets:
         "历史总资产净值（Net Assets）和单位净值（NAV）均来自USCF官方历史净值接口；总资产变化包含市场价格变动、申赎及费用影响，不等同于净资金流。",
       assetChangeBarrels:
-        "历史资产变化的桶等值 = 当期美元变化×当前名义桶等值÷当前总净资产。该指标只做单位换算，方便与美元切换比较，不代表历史逐日真实合约增减。",
+        `历史持仓变化估算：先用每日总净资产÷NAV反推流通份额，再以当前官方流通份额为锚，按${symbol}每篮子${config.creationBasketShares.toLocaleString("en-US")}份的官方最小申赎单位取整；每日份额变化×当前每份名义桶数。该方法剔除油价涨跌造成的资产变化，主要反映申赎驱动的持仓变化，不包含展期或主动调仓造成的桶数变化。`,
       dataMode:
         "本文件是一次性冻结快照，不会在页面端轮询。运行 npm run data:refresh 可人工生成新快照。",
     },
@@ -226,7 +302,12 @@ async function buildFundSnapshot(config, token) {
       {
         label: `${symbol} 2025年Form 10-K（SEC）`,
         url: config.secUrl,
-        covers: "基金目标、基准合约及期货型产品风险口径",
+        covers: `基金目标、申赎机制及每篮子${config.creationBasketShares.toLocaleString("en-US")}份的官方单位`,
+      },
+      {
+        label: `${config.contractVenue} ${config.benchmark}期货合约规格`,
+        url: config.contractSpecUrl,
+        covers: "每手期货对应1,000桶的交易所标准合约规格",
       },
     ],
   };
