@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: base,
     title: "原油ETF持仓报告｜WTI USO・Brent BNO",
     description:
-      "基于USCF官方数据的USO与BNO原油ETF持仓、桶等值敞口、历史净值、资产变化与溢折价监控。",
+      "基于USCF官方数据的USO与BNO原油ETF持仓、桶等值敞口、历史净值与资产变化报告。",
     openGraph: {
       type: "website",
       locale: "zh_CN",

@@ -47,8 +47,9 @@ test("server-renders the production USO and BNO report", async () => {
   assert.match(html, /按美元/);
   assert.match(html, /-159\.70/);
   assert.match(html, /并非历史逐日真实合约增减/);
-  assert.match(html, /溢折价监控/);
-  assert.match(html, /数据口径与来源/);
+  assert.doesNotMatch(html, /溢折价监控/);
+  assert.doesNotMatch(html, /极值与展期监控/);
+  assert.doesNotMatch(html, /数据口径与来源/);
   assert.match(
     html,
     /https:\/\/oil-etf-report\.example\/og\.png/,
