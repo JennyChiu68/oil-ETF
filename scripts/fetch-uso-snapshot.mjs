@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -48,6 +48,59 @@ function round(value, digits = 2) {
   return Math.round((Number(value) + Number.EPSILON) * scale) / scale;
 }
 
+async function readPreviousSnapshot(outputFile) {
+  try {
+    return JSON.parse(await readFile(outputFile, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+export function mergeHistoryWithOfficialArchive({
+  freshModelRows,
+  modelFrozenThrough,
+  preservedRows = [],
+  officialRows = [],
+}) {
+  const officialByDate = new Map(
+    officialRows.map((row) => [row.date, row]),
+  );
+  const preservedRowsByDate = new Map(
+    preservedRows
+      .filter((row) => row.date <= modelFrozenThrough)
+      .map((row) => [row.date, row]),
+  );
+
+  return freshModelRows.map((row, index, rows) => {
+    if (row.date <= modelFrozenThrough) {
+      return preservedRowsByDate.get(row.date) ?? row;
+    }
+
+    const observation = officialByDate.get(row.date);
+    if (!observation) return row;
+
+    const previousDate = rows[index - 1]?.date;
+    const previousObservation = previousDate
+      ? officialByDate.get(previousDate)
+      : null;
+    return {
+      ...row,
+      sharesOutstandingEstimate: observation.sharesOutstanding,
+      futuresBarrelEquivalentEstimate:
+        observation.futuresBarrelEquivalent,
+      futuresBarrelEquivalentChange: previousObservation
+        ? round(
+            observation.futuresBarrelEquivalent -
+              previousObservation.futuresBarrelEquivalent,
+            2,
+          )
+        : row.futuresBarrelEquivalentChange,
+      changeBasis: previousObservation ? "official" : "estimated-gap",
+    };
+  });
+}
+
 async function getPublicToken() {
   const response = await fetch(API_KEY_SCRIPT);
   if (!response.ok) {
@@ -87,6 +140,8 @@ function holdingCategory(row) {
 
 async function buildFundSnapshot(config, token) {
   const symbol = config.symbol;
+  const outputFile = resolve(OUTPUT_DIR, `${symbol.toLowerCase()}-snapshot.json`);
+  const previousSnapshot = await readPreviousSnapshot(outputFile);
   const [dailyPricePayload, holdingsPayload, historyPayload] =
     await Promise.all([
       getJson(`dailyprice/${symbol}`, token),
@@ -101,6 +156,22 @@ async function buildFundSnapshot(config, token) {
   }
 
   const asOfDate = isoDate(daily.displaydate);
+  const holdingAsOfDates = Array.from(
+    new Set(
+      holdingsPayload
+        .filter((row) => row.possessionname === "Hold" && row.asofdate)
+        .map((row) => isoDate(row.asofdate)),
+    ),
+  );
+  if (
+    holdingAsOfDates.length !== 1 ||
+    holdingAsOfDates[0] !== asOfDate
+  ) {
+    throw new Error(
+      `USCF ${symbol} holdings date ${holdingAsOfDates.join(",") || "missing"} does not match NAV date ${asOfDate}`,
+    );
+  }
+
   const fiveYearStart = new Date(`${asOfDate}T00:00:00Z`);
   fiveYearStart.setUTCFullYear(fiveYearStart.getUTCFullYear() - 5);
   const baseHistoryRows = history
@@ -186,8 +257,12 @@ async function buildFundSnapshot(config, token) {
   const sharesOutstanding = round(daily.so, 0);
   const barrelsPerShare =
     sharesOutstanding > 0 ? oilBarrelEquivalent / sharesOutstanding : 0;
+  const futuresBarrelsPerShare =
+    sharesOutstanding > 0
+      ? futuresBarrelEquivalent / sharesOutstanding
+      : 0;
   let priorSharesOutstandingEstimate = null;
-  const historyRows = baseHistoryRows.map((row) => {
+  const freshModelRows = baseHistoryRows.map((row) => {
     const rawSharesOutstanding = row.netAssets / row.nav;
     const sharesOutstandingEstimate =
       sharesOutstanding +
@@ -206,15 +281,66 @@ async function buildFundSnapshot(config, token) {
       ...row,
       sharesOutstandingEstimate: round(sharesOutstandingEstimate, 0),
       sharesOutstandingChange: round(sharesOutstandingChange, 0),
-      oilBarrelEquivalentEstimate: round(
-        sharesOutstandingEstimate * barrelsPerShare,
+      futuresBarrelEquivalentEstimate: round(
+        sharesOutstandingEstimate * futuresBarrelsPerShare,
         2,
       ),
-      barrelEquivalentChange: round(
-        sharesOutstandingChange * barrelsPerShare,
+      futuresBarrelEquivalentChange: round(
+        sharesOutstandingChange * futuresBarrelsPerShare,
         2,
       ),
+      changeBasis: "estimated",
     };
+  });
+
+  const generatedAtUtc = new Date().toISOString();
+  const officialObservation = {
+    date: asOfDate,
+    fetchedAtUtc: generatedAtUtc,
+    source: "USCF official holdings",
+    sharesOutstanding,
+    futuresBarrelEquivalent: round(futuresBarrelEquivalent, 2),
+    swapBarrelEquivalentEstimate: round(swapBarrelEquivalent, 2),
+    oilBarrelEquivalent: round(oilBarrelEquivalent, 2),
+    barrelEquivalentType:
+      swapBarrelEquivalent > 0 ? "official-futures-plus-estimated-swap" : "official-futures",
+    futuresPositions: futuresPositions.map((row) => ({
+      name: row.name,
+      ticker: row.ticker,
+      contracts: row.quantity,
+      barrels: round(row.quantity * 1000, 2),
+    })),
+    swapPositions: holdings
+      .filter((row) => row.holdingType === "Swap")
+      .map((row) => ({
+        name: row.name,
+        ticker: row.ticker,
+        marketValue: row.marketValue,
+        barrelEquivalentEstimate: round(row.barrelEquivalent || 0, 2),
+      })),
+  };
+  const officialRowsByDate = new Map(
+    (previousSnapshot?.officialHistory?.rows ?? []).map((row) => [
+      row.date,
+      row,
+    ]),
+  );
+  officialRowsByDate.set(asOfDate, officialObservation);
+  const officialRows = Array.from(officialRowsByDate.values()).sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+  const modelFrozenThrough =
+    previousSnapshot?.schemaVersion >= 3
+      ? previousSnapshot.history.modelFrozenThrough
+      : asOfDate;
+  const historyRows = mergeHistoryWithOfficialArchive({
+    freshModelRows,
+    modelFrozenThrough,
+    preservedRows:
+      previousSnapshot?.schemaVersion >= 3
+        ? previousSnapshot.history.rows
+        : [],
+    officialRows,
   });
   const shareInferenceMaxResidual = Math.max(
     ...historyRows.map((row) =>
@@ -224,8 +350,8 @@ async function buildFundSnapshot(config, token) {
   );
 
   const snapshot = {
-    schemaVersion: 2,
-    generatedAtUtc: new Date().toISOString(),
+    schemaVersion: 3,
+    generatedAtUtc,
     fund: {
       symbol,
       name: config.name,
@@ -257,6 +383,7 @@ async function buildFundSnapshot(config, token) {
           ? null
           : round(futuresReferencePrice, 4),
       barrelsPerShare: round(barrelsPerShare, 8),
+      futuresBarrelsPerShare: round(futuresBarrelsPerShare, 8),
       creationBasketShares: config.creationBasketShares,
       oilNotional: round(oilNotional, 2),
       oilExposurePctOfNav: round(oilWeight, 8),
@@ -269,12 +396,23 @@ async function buildFundSnapshot(config, token) {
       dateFrom: historyRows[0]?.date,
       dateTo: historyRows.at(-1)?.date,
       records: historyRows.length,
+      modelFrozenThrough,
+      officialArchiveStarts: officialRows[0]?.date,
+      officialDailyChanges: historyRows.filter(
+        (row) => row.changeBasis === "official",
+      ).length,
       shareInferenceMaxResidual: round(shareInferenceMaxResidual, 2),
       shareInferenceMaxResidualPctOfBasket: round(
         shareInferenceMaxResidual / config.creationBasketShares,
         8,
       ),
       rows: historyRows,
+    },
+    officialHistory: {
+      dateFrom: officialRows[0]?.date,
+      dateTo: officialRows.at(-1)?.date,
+      records: officialRows.length,
+      rows: officialRows,
     },
     methodology: {
       headline:
@@ -284,9 +422,11 @@ async function buildFundSnapshot(config, token) {
       netAssets:
         "历史总资产净值（Net Assets）和单位净值（NAV）均来自USCF官方历史净值接口；总资产变化包含市场价格变动、申赎及费用影响，不等同于净资金流。",
       assetChangeBarrels:
-        `历史持仓变化估算：先用每日总净资产÷NAV反推流通份额，再以当前官方流通份额为锚，按${symbol}每篮子${config.creationBasketShares.toLocaleString("en-US")}份的官方最小申赎单位取整；每日份额变化×当前每份名义桶数。该方法剔除油价涨跌造成的资产变化，主要反映申赎驱动的持仓变化，不包含展期或主动调仓造成的桶数变化。`,
+        `历史期货持仓变化采用模型估算：先用每日总净资产÷NAV反推流通份额，再以${modelFrozenThrough}官方流通份额为锚，按${symbol}每篮子${config.creationBasketShares.toLocaleString("en-US")}份的官方最小申赎单位取整；每日份额变化×该日冻结的每份期货桶数。该方法剔除油价涨跌造成的资产变化，但不包含展期或主动调仓。`,
+      officialArchive:
+        `自${officialRows[0]?.date}起保存USCF官方每日合约级持仓。形成相邻两个交易日的官方快照后，期货桶数变化直接按“当日各期货合约手数×1,000桶－上一交易日各期货合约手数×1,000桶”计算；漏抓日期不会把跨日差额冒充为单日变化。USO掉期继续单独作为名义桶当量估算，不计入官方期货桶数变化。`,
       dataMode:
-        "本文件是一次性冻结快照，不会在页面端轮询。运行 npm run data:refresh 可人工生成新快照。",
+        "页面端不会轮询。运行 npm run data:refresh 会保留既有官方归档、追加当日USCF官方持仓，并冻结已发布的历史估算。",
     },
     sources: [
       {
@@ -312,7 +452,6 @@ async function buildFundSnapshot(config, token) {
     ],
   };
 
-  const outputFile = resolve(OUTPUT_DIR, `${symbol.toLowerCase()}-snapshot.json`);
   await mkdir(OUTPUT_DIR, { recursive: true });
   await writeFile(outputFile, `${JSON.stringify(snapshot, null, 2)}\n`);
 
@@ -330,7 +469,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (resolve(process.argv[1] || "") === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

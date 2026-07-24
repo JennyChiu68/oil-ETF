@@ -12,8 +12,9 @@ type HistoryRow = {
   netAssetsChangePct: number;
   sharesOutstandingEstimate: number;
   sharesOutstandingChange: number;
-  oilBarrelEquivalentEstimate: number;
-  barrelEquivalentChange: number;
+  futuresBarrelEquivalentEstimate: number;
+  futuresBarrelEquivalentChange: number;
+  changeBasis: "estimated" | "estimated-gap" | "official";
 };
 
 type Holding = {
@@ -29,6 +30,7 @@ type Holding = {
 };
 
 type Snapshot = {
+  schemaVersion: number;
   generatedAtUtc: string;
   fund: {
     symbol: string;
@@ -58,6 +60,7 @@ type Snapshot = {
     swapBarrelEquivalent: number;
     futuresReferencePrice: number | null;
     barrelsPerShare: number;
+    futuresBarrelsPerShare: number;
     creationBasketShares: number;
     oilNotional: number;
     oilExposurePctOfNav: number;
@@ -69,14 +72,45 @@ type Snapshot = {
     dateFrom: string;
     dateTo: string;
     records: number;
+    modelFrozenThrough: string;
+    officialArchiveStarts: string;
+    officialDailyChanges: number;
     shareInferenceMaxResidual: number;
     shareInferenceMaxResidualPctOfBasket: number;
     rows: HistoryRow[];
+  };
+  officialHistory: {
+    dateFrom: string;
+    dateTo: string;
+    records: number;
+    rows: Array<{
+      date: string;
+      fetchedAtUtc: string;
+      source: string;
+      sharesOutstanding: number;
+      futuresBarrelEquivalent: number;
+      swapBarrelEquivalentEstimate: number;
+      oilBarrelEquivalent: number;
+      barrelEquivalentType: string;
+      futuresPositions: Array<{
+        name: string;
+        ticker: string;
+        contracts: number;
+        barrels: number;
+      }>;
+      swapPositions: Array<{
+        name: string;
+        ticker: string;
+        marketValue: number | null;
+        barrelEquivalentEstimate: number;
+      }>;
+    }>;
   };
   methodology: {
     headline: string;
     netAssets: string;
     assetChangeBarrels: string;
+    officialArchive: string;
     dataMode: string;
   };
   sources: Array<{
@@ -425,17 +459,10 @@ function OilEtfFundReport({
       row,
       value:
         analysisUnit === "barrels"
-          ? row.barrelEquivalentChange / 10_000
+          ? row.futuresBarrelEquivalentChange / 10_000
           : row.netAssetsChange / 100_000_000,
     }));
-    const first = analysisRows[0];
-    const last = analysisRows.at(-1) ?? first;
-    const net =
-      analysisUnit === "barrels"
-        ? (last.oilBarrelEquivalentEstimate -
-            first.oilBarrelEquivalentEstimate) /
-          10_000
-        : (last.netAssets - first.netAssets) / 100_000_000;
+    const net = daily.reduce((sum, item) => sum + item.value, 0);
     const up = daily
       .filter((item) => item.value > 0)
       .reduce((sum, item) => sum + item.value, 0);
@@ -497,7 +524,7 @@ function OilEtfFundReport({
           analysisUnit === "barrels"
             ? group.rows.reduce(
                 (sum, row) =>
-                  sum + row.barrelEquivalentChange / 10_000,
+                  sum + row.futuresBarrelEquivalentChange / 10_000,
                 0,
               )
             : group.rows.reduce(
@@ -559,7 +586,7 @@ function OilEtfFundReport({
           row,
           value:
             analysisUnit === "barrels"
-              ? row.barrelEquivalentChange / 10_000
+              ? row.futuresBarrelEquivalentChange / 10_000
               : row.netAssetsChange / 100_000_000,
         })),
     [analysisRows, analysisUnit],
@@ -583,7 +610,10 @@ function OilEtfFundReport({
   };
 
   const analysisSuffix =
-    analysisUnit === "barrels" ? "万桶等值" : "亿美元";
+    analysisUnit === "barrels" ? "万桶" : "亿美元";
+  const officialChangesInRange = analysisRows.filter(
+    (row) => row.changeBasis === "official",
+  ).length;
   const oilHoldings = snapshot.holdings.filter(
     (holding) =>
       holding.holdingType === "Futures" ||
@@ -764,7 +794,7 @@ function OilEtfFundReport({
               </p>
               <h2>
                 {analysisUnit === "barrels"
-                  ? "持仓变化一览"
+                  ? "期货持仓变化一览"
                   : "资产净值变化一览"}
               </h2>
             </div>
@@ -843,6 +873,20 @@ function OilEtfFundReport({
             </span>
             <span>{analysisRows.length}个交易日</span>
           </div>
+
+          {analysisUnit === "barrels" ? (
+            <div className="data-basis-strip">
+              <span className="estimated">历史 · 模型估算</span>
+              <span className="official">
+                官方归档自 {snapshot.history.officialArchiveStarts}
+              </span>
+              <small>
+                {officialChangesInRange > 0
+                  ? `本区间含${officialChangesInRange}个官方日变化`
+                  : "相邻两个官方交易日快照后生成首个官方日变化"}
+              </small>
+            </div>
+          ) : null}
 
           <div className="summary-grid analysis-summary">
             <div className="summary-box">
@@ -944,7 +988,7 @@ function OilEtfFundReport({
             })}
           </div>
           <p className="inline-note">
-            按桶先用官方总净资产÷NAV反推流通份额，按官方申赎篮子取整后，再乘当前每份名义桶数；已剔除油价涨跌对资产净值的影响。切换按美元可查看USCF官方资产变化原值。
+            历史按桶数据统一采用模型估算：由官方总净资产÷NAV反推流通份额，按申赎篮子取整后乘冻结日的每份期货桶数。官方归档形成连续两个交易日快照后，日变化改用各期货合约手数×1,000桶直接相减；USO掉期不计入期货桶数变化。切换按美元可查看USCF官方资产变化原值。
           </p>
         </section>
 
@@ -954,7 +998,7 @@ function OilEtfFundReport({
               <p className="section-kicker">DAILY DETAIL</p>
               <h2>
                 {analysisUnit === "barrels"
-                  ? "区间持仓日变化"
+                  ? "区间期货持仓日变化"
                   : "区间资产日变化"}
               </h2>
             </div>
@@ -1000,6 +1044,17 @@ function OilEtfFundReport({
                   <div className="daily-date">
                     <strong>{formatDateCn(row.date, false)}</strong>
                     <span>{row.date.slice(0, 4)}</span>
+                    {analysisUnit === "barrels" ? (
+                      <em
+                        className={`basis-tag ${
+                          row.changeBasis === "official"
+                            ? "official"
+                            : "estimated"
+                        }`}
+                      >
+                        {row.changeBasis === "official" ? "官方" : "估算"}
+                      </em>
+                    ) : null}
                     {isHigh ? <em className="up-tag">区间最高</em> : null}
                     {isLow ? <em className="down-tag">区间最低</em> : null}
                   </div>
@@ -1056,7 +1111,7 @@ function OilEtfFundReport({
             </button>
           ) : null}
           <p className="inline-note">
-            桶数为申赎驱动的持仓变化估算，不含展期或主动调仓造成的桶数变化，也不代表实物原油库存。
+            “估算”表示历史模型值；“官方”表示由相邻两个USCF官方合约级快照直接计算。若中间漏抓交易日，该日仍按估算展示，不会将跨多日差额记成单日变化。桶数均为期货名义数量，不代表实物原油库存。
           </p>
         </section>
 
@@ -1195,6 +1250,10 @@ function OilEtfFundReport({
             数据截至 {snapshot.fund.asOfDate} · 历史区间{" "}
             {snapshot.history.dateFrom}—{snapshot.history.dateTo} ·{" "}
             {snapshot.history.records}个交易日
+          </p>
+          <p>
+            历史模型冻结至 {snapshot.history.modelFrozenThrough} ·
+            官方持仓归档自 {snapshot.history.officialArchiveStarts}
           </p>
           <p>本报告仅作客观数据展示，不构成任何投资建议。</p>
         </footer>

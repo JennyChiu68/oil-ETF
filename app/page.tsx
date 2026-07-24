@@ -19,13 +19,13 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: base,
     title: "原油ETF持仓报告｜WTI USO・Brent BNO",
     description:
-      "基于USCF官方数据的USO与BNO原油ETF持仓、桶等值敞口、历史净值与资产变化报告。",
+      "USO与BNO官方当前持仓、期货桶数变化、历史模型估算与官方持仓归档报告。",
     openGraph: {
       type: "website",
       locale: "zh_CN",
       title: "原油ETF持仓报告｜WTI USO・Brent BNO",
       description:
-        "一页切换查看WTI对应USO与Brent对应BNO的名义桶等值、持仓结构与近5年官方历史数据。",
+        "一页切换查看WTI对应USO与Brent对应BNO的官方当前持仓、历史模型估算与持续归档的官方期货桶数变化。",
       images: [
         {
           url: new URL("/og.png", base).toString(),
@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: "原油ETF持仓报告｜WTI USO・Brent BNO",
       description:
-        "一页切换查看WTI对应USO与Brent对应BNO的名义桶等值、持仓结构与近5年官方历史数据。",
+        "一页切换查看WTI对应USO与Brent对应BNO的官方当前持仓、历史模型估算与持续归档的官方期货桶数变化。",
       images: [new URL("/og.png", base).toString()],
     },
   };

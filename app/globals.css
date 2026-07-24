@@ -978,6 +978,42 @@ a {
   font-size: 9px;
 }
 
+.data-basis-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: -2px 0 11px;
+  padding: 8px 9px;
+  color: var(--muted);
+  background: #f5f3ed;
+  border: 1px solid #e6e1d6;
+  border-radius: 9px;
+}
+
+.data-basis-strip span {
+  padding: 3px 6px;
+  border-radius: 999px;
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.data-basis-strip span.estimated {
+  color: #866329;
+  background: #f4e5c8;
+}
+
+.data-basis-strip span.official {
+  color: #2d6742;
+  background: #dcebe0;
+}
+
+.data-basis-strip small {
+  flex: 1 1 100%;
+  font-size: 7px;
+  line-height: 1.5;
+}
+
 .analysis-summary {
   margin-bottom: 16px;
 }
@@ -1128,6 +1164,20 @@ a {
   font-size: 7px;
   font-style: normal;
   font-weight: 800;
+}
+
+.daily-date .basis-tag {
+  margin-right: 3px;
+}
+
+.basis-tag.estimated {
+  color: #866329;
+  background: #f4e5c8;
+}
+
+.basis-tag.official {
+  color: #2d6742;
+  background: #dcebe0;
 }
 
 .up-tag {
