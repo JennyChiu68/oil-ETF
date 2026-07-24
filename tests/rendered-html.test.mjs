@@ -46,11 +46,11 @@ test("server-renders the production USO and BNO report", async () => {
   assert.match(html, /持仓变化一览/);
   assert.match(html, /按桶/);
   assert.match(html, /按美元/);
-  assert.match(html, /历史 · 模型估算/);
-  assert.match(html, /官方归档自[^0-9]*2026-07-23/);
-  assert.match(html, /相邻两个官方交易日快照后生成首个官方日变化/);
+  assert.match(html, /历史期货持仓变化均为模型估算/);
+  assert.match(html, /起保存USCF官方合约级快照/);
   assert.match(html, /区间期货持仓日变化/);
   assert.match(html, /各期货合约手数×1,000桶直接相减/);
+  assert.doesNotMatch(html, /data-basis-strip|basis-tag/);
   assert.ok(
     html.indexOf("<h2>期货持仓变化一览</h2>") <
       html.indexOf("<h2>当前持仓</h2>"),

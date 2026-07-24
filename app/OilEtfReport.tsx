@@ -611,9 +611,6 @@ function OilEtfFundReport({
 
   const analysisSuffix =
     analysisUnit === "barrels" ? "万桶" : "亿美元";
-  const officialChangesInRange = analysisRows.filter(
-    (row) => row.changeBasis === "official",
-  ).length;
   const oilHoldings = snapshot.holdings.filter(
     (holding) =>
       holding.holdingType === "Futures" ||
@@ -874,20 +871,6 @@ function OilEtfFundReport({
             <span>{analysisRows.length}个交易日</span>
           </div>
 
-          {analysisUnit === "barrels" ? (
-            <div className="data-basis-strip">
-              <span className="estimated">历史 · 模型估算</span>
-              <span className="official">
-                官方归档自 {snapshot.history.officialArchiveStarts}
-              </span>
-              <small>
-                {officialChangesInRange > 0
-                  ? `本区间含${officialChangesInRange}个官方日变化`
-                  : "相邻两个官方交易日快照后生成首个官方日变化"}
-              </small>
-            </div>
-          ) : null}
-
           <div className="summary-grid analysis-summary">
             <div className="summary-box">
               <span>区间净变化</span>
@@ -988,7 +971,9 @@ function OilEtfFundReport({
             })}
           </div>
           <p className="inline-note">
-            历史按桶数据统一采用模型估算：由官方总净资产÷NAV反推流通份额，按申赎篮子取整后乘冻结日的每份期货桶数。官方归档形成连续两个交易日快照后，日变化改用各期货合约手数×1,000桶直接相减；USO掉期不计入期货桶数变化。切换按美元可查看USCF官方资产变化原值。
+            历史期货持仓变化均为模型估算：由官方总净资产÷NAV反推流通份额，按申赎篮子取整后乘冻结日的每份期货桶数。自
+            {snapshot.history.officialArchiveStarts}
+            起保存USCF官方合约级快照；只有连续两个交易日都有官方快照时，日变化才按各期货合约手数×1,000桶直接相减。漏抓日仍采用模型估算，USO掉期不计入期货桶数变化。切换按美元可查看USCF官方资产变化原值。
           </p>
         </section>
 
@@ -1044,17 +1029,6 @@ function OilEtfFundReport({
                   <div className="daily-date">
                     <strong>{formatDateCn(row.date, false)}</strong>
                     <span>{row.date.slice(0, 4)}</span>
-                    {analysisUnit === "barrels" ? (
-                      <em
-                        className={`basis-tag ${
-                          row.changeBasis === "official"
-                            ? "official"
-                            : "estimated"
-                        }`}
-                      >
-                        {row.changeBasis === "official" ? "官方" : "估算"}
-                      </em>
-                    ) : null}
                     {isHigh ? <em className="up-tag">区间最高</em> : null}
                     {isLow ? <em className="down-tag">区间最低</em> : null}
                   </div>
@@ -1110,9 +1084,6 @@ function OilEtfFundReport({
               加载更多
             </button>
           ) : null}
-          <p className="inline-note">
-            “估算”表示历史模型值；“官方”表示由相邻两个USCF官方合约级快照直接计算。若中间漏抓交易日，该日仍按估算展示，不会将跨多日差额记成单日变化。桶数均为期货名义数量，不代表实物原油库存。
-          </p>
         </section>
 
         <section className="card holdings-card">
