@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "generatedAtUtc": "2026-07-24T07:49:34.340Z",
+  "generatedAtUtc": "2026-07-24T08:32:39.634Z",
   "fund": {
     "symbol": "BNO",
     "name": "United States Brent Oil Fund, LP",
@@ -98,6 +98,8 @@
     "dateTo": "2026-07-23",
     "records": 1254,
     "modelFrozenThrough": "2026-07-23",
+    "modelReferenceDate": "2026-07-23",
+    "modelFuturesBarrelsPerShare": 0.58633205,
     "officialArchiveStarts": "2026-07-23",
     "officialDailyChanges": 0,
     "shareInferenceMaxResidual": 3785.94,
@@ -17668,7 +17670,7 @@
     "rows": [
       {
         "date": "2026-07-23",
-        "fetchedAtUtc": "2026-07-24T07:49:34.340Z",
+        "fetchedAtUtc": "2026-07-24T08:32:39.634Z",
         "source": "USCF official holdings",
         "sharesOutstanding": 12950000,
         "futuresBarrelEquivalent": 7593000,
@@ -17690,7 +17692,7 @@
   "methodology": {
     "headline": "名义桶等值 = Brent期货合约数量×1,000桶/手。当前持仓不含掉期，桶数可按交易所标准合约规格精确换算，但不代表基金持有实物原油。",
     "netAssets": "历史总资产净值（Net Assets）和单位净值（NAV）均来自USCF官方历史净值接口；总资产变化包含市场价格变动、申赎及费用影响，不等同于净资金流。",
-    "assetChangeBarrels": "历史期货持仓变化采用模型估算：先用每日总净资产÷NAV反推流通份额，再以2026-07-23官方流通份额为锚，按BNO每篮子50,000份的官方最小申赎单位取整；每日份额变化×该日冻结的每份期货桶数。该方法剔除油价涨跌造成的资产变化，但不包含展期或主动调仓。",
+    "assetChangeBarrels": "历史期货持仓变化采用模型估算：先用每日总净资产÷NAV反推流通份额，再以2026-07-23官方流通份额为锚，按BNO每篮子50,000份的官方最小申赎单位取整；每日份额变化×最近一个已保存官方快照（2026-07-23）的每份期货桶数。该方法剔除油价涨跌造成的资产变化，但不包含展期或主动调仓。",
     "officialArchive": "自2026-07-23起保存USCF官方每日合约级持仓。形成相邻两个交易日的官方快照后，期货桶数变化直接按“当日各期货合约手数×1,000桶－上一交易日各期货合约手数×1,000桶”计算；漏抓日期不会把跨日差额冒充为单日变化。USO掉期继续单独作为名义桶当量估算，不计入官方期货桶数变化。",
     "dataMode": "页面端不会轮询。运行 npm run data:refresh 会保留既有官方归档、追加当日USCF官方持仓，并冻结已发布的历史估算。"
   },

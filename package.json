@@ -13,6 +13,7 @@
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern pages-dist",
     "data:refresh": "node scripts/fetch-uso-snapshot.mjs",
+    "data:verify:official": "node scripts/verify-official-data.mjs",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

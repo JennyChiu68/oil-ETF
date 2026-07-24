@@ -35,9 +35,13 @@ npm run data:refresh
 该命令会从 USCF 页面使用的公开接口更新 `public/data/uso-snapshot.json` 和 `public/data/bno-snapshot.json`。脚本会读取原文件、保留既有官方归档并追加当日快照，不会保存接口令牌，也不会重算已冻结的历史估算。更新数据后应重新执行：
 
 ```bash
+npm run data:verify:official
 npm test
 npm run lint
 ```
+
+完整的数据字段映射、北京时间更新计划、计算公式、失败处理和上线验收标准见
+[`TECHNICAL_REQUIREMENTS.md`](./TECHNICAL_REQUIREMENTS.md)。
 
 ## 主要文件
 
@@ -46,7 +50,9 @@ npm run lint
 - `public/data/uso-snapshot.json`：上线使用的冻结数据快照
 - `public/data/bno-snapshot.json`：BNO 上线使用的冻结数据快照
 - `scripts/fetch-uso-snapshot.mjs`：人工更新脚本
+- `scripts/verify-official-data.mjs`：与 USCF 当前公开接口逐条对账
 - `tests/rendered-html.test.mjs`：渲染与数据一致性检查
+- `TECHNICAL_REQUIREMENTS.md`：上线与每日更新技术需求
 
 ## 官方来源
 

@@ -1,4 +1,10 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  rename,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -67,9 +73,7 @@ export function mergeHistoryWithOfficialArchive({
     officialRows.map((row) => [row.date, row]),
   );
   const preservedRowsByDate = new Map(
-    preservedRows
-      .filter((row) => row.date <= modelFrozenThrough)
-      .map((row) => [row.date, row]),
+    preservedRows.map((row) => [row.date, row]),
   );
 
   return freshModelRows.map((row, index, rows) => {
@@ -78,15 +82,29 @@ export function mergeHistoryWithOfficialArchive({
     }
 
     const observation = officialByDate.get(row.date);
-    if (!observation) return row;
+    if (!observation) {
+      return preservedRowsByDate.get(row.date) ?? row;
+    }
 
     const previousDate = rows[index - 1]?.date;
     const previousObservation = previousDate
       ? officialByDate.get(previousDate)
       : null;
+    const previousRow = rows[index - 1];
+    const sharesOutstandingChange = previousObservation
+      ? observation.sharesOutstanding -
+        previousObservation.sharesOutstanding
+      : previousRow
+        ? observation.sharesOutstanding -
+          previousRow.sharesOutstandingEstimate
+        : 0;
+    const preservedChange = preservedRowsByDate.get(
+      row.date,
+    )?.futuresBarrelEquivalentChange;
     return {
       ...row,
       sharesOutstandingEstimate: observation.sharesOutstanding,
+      sharesOutstandingChange,
       futuresBarrelEquivalentEstimate:
         observation.futuresBarrelEquivalent,
       futuresBarrelEquivalentChange: previousObservation
@@ -95,7 +113,7 @@ export function mergeHistoryWithOfficialArchive({
               previousObservation.futuresBarrelEquivalent,
             2,
           )
-        : row.futuresBarrelEquivalentChange,
+        : (preservedChange ?? row.futuresBarrelEquivalentChange),
       changeBasis: previousObservation ? "official" : "estimated-gap",
     };
   });
@@ -156,6 +174,14 @@ async function buildFundSnapshot(config, token) {
   }
 
   const asOfDate = isoDate(daily.displaydate);
+  if (
+    previousSnapshot?.fund?.asOfDate &&
+    asOfDate < previousSnapshot.fund.asOfDate
+  ) {
+    throw new Error(
+      `USCF ${symbol} date ${asOfDate} is older than the published snapshot ${previousSnapshot.fund.asOfDate}`,
+    );
+  }
   const holdingAsOfDates = Array.from(
     new Set(
       holdingsPayload
@@ -174,9 +200,27 @@ async function buildFundSnapshot(config, token) {
 
   const fiveYearStart = new Date(`${asOfDate}T00:00:00Z`);
   fiveYearStart.setUTCFullYear(fiveYearStart.getUTCFullYear() - 5);
-  const baseHistoryRows = history
+  const filteredHistory = history
     .filter((row) => new Date(row.date) >= fiveYearStart && row.navTotal > 0)
-    .map((row, index, filtered) => {
+    .map((row) => ({
+      ...row,
+      normalizedDate: isoDate(row.date),
+    }));
+  const historyDates = filteredHistory.map((row) => row.normalizedDate);
+  if (
+    historyDates.length === 0 ||
+    new Set(historyDates).size !== historyDates.length ||
+    historyDates.some(
+      (date, index) => index > 0 && date <= historyDates[index - 1],
+    ) ||
+    historyDates.at(-1) !== asOfDate
+  ) {
+    throw new Error(
+      `USCF ${symbol} historical NAV dates are missing, duplicated, unsorted, or do not end on ${asOfDate}`,
+    );
+  }
+  const baseHistoryRows = filteredHistory.map(
+    (row, index, filtered) => {
       const prior = filtered[index - 1];
       const netAssetsChange = prior ? row.navTotal - prior.navTotal : 0;
       const netAssetsChangePct =
@@ -185,7 +229,7 @@ async function buildFundSnapshot(config, token) {
           : 0;
 
       return {
-        date: isoDate(row.date),
+        date: row.normalizedDate,
         nav: round(row.value, 2),
         navChange: round(row.change, 2),
         navChangePct: round(row.changepercent, 8),
@@ -193,7 +237,8 @@ async function buildFundSnapshot(config, token) {
         netAssetsChange: round(netAssetsChange, 2),
         netAssetsChangePct: round(netAssetsChangePct, 8),
       };
-    });
+    },
+  );
 
   const rawHoldings = holdingsPayload
     .filter((row) => row.possessionname === "Hold")
@@ -261,6 +306,11 @@ async function buildFundSnapshot(config, token) {
     sharesOutstanding > 0
       ? futuresBarrelEquivalent / sharesOutstanding
       : 0;
+  const modelReferenceDate =
+    previousSnapshot?.fund?.asOfDate ?? asOfDate;
+  const modelFuturesBarrelsPerShare =
+    previousSnapshot?.current?.futuresBarrelsPerShare ??
+    futuresBarrelsPerShare;
   let priorSharesOutstandingEstimate = null;
   const freshModelRows = baseHistoryRows.map((row) => {
     const rawSharesOutstanding = row.netAssets / row.nav;
@@ -282,11 +332,11 @@ async function buildFundSnapshot(config, token) {
       sharesOutstandingEstimate: round(sharesOutstandingEstimate, 0),
       sharesOutstandingChange: round(sharesOutstandingChange, 0),
       futuresBarrelEquivalentEstimate: round(
-        sharesOutstandingEstimate * futuresBarrelsPerShare,
+        sharesOutstandingEstimate * modelFuturesBarrelsPerShare,
         2,
       ),
       futuresBarrelEquivalentChange: round(
-        sharesOutstandingChange * futuresBarrelsPerShare,
+        sharesOutstandingChange * modelFuturesBarrelsPerShare,
         2,
       ),
       changeBasis: "estimated",
@@ -397,6 +447,11 @@ async function buildFundSnapshot(config, token) {
       dateTo: historyRows.at(-1)?.date,
       records: historyRows.length,
       modelFrozenThrough,
+      modelReferenceDate,
+      modelFuturesBarrelsPerShare: round(
+        modelFuturesBarrelsPerShare,
+        8,
+      ),
       officialArchiveStarts: officialRows[0]?.date,
       officialDailyChanges: historyRows.filter(
         (row) => row.changeBasis === "official",
@@ -422,7 +477,7 @@ async function buildFundSnapshot(config, token) {
       netAssets:
         "历史总资产净值（Net Assets）和单位净值（NAV）均来自USCF官方历史净值接口；总资产变化包含市场价格变动、申赎及费用影响，不等同于净资金流。",
       assetChangeBarrels:
-        `历史期货持仓变化采用模型估算：先用每日总净资产÷NAV反推流通份额，再以${modelFrozenThrough}官方流通份额为锚，按${symbol}每篮子${config.creationBasketShares.toLocaleString("en-US")}份的官方最小申赎单位取整；每日份额变化×该日冻结的每份期货桶数。该方法剔除油价涨跌造成的资产变化，但不包含展期或主动调仓。`,
+        `历史期货持仓变化采用模型估算：先用每日总净资产÷NAV反推流通份额，再以${modelFrozenThrough}官方流通份额为锚，按${symbol}每篮子${config.creationBasketShares.toLocaleString("en-US")}份的官方最小申赎单位取整；每日份额变化×最近一个已保存官方快照（${modelReferenceDate}）的每份期货桶数。该方法剔除油价涨跌造成的资产变化，但不包含展期或主动调仓。`,
       officialArchive:
         `自${officialRows[0]?.date}起保存USCF官方每日合约级持仓。形成相邻两个交易日的官方快照后，期货桶数变化直接按“当日各期货合约手数×1,000桶－上一交易日各期货合约手数×1,000桶”计算；漏抓日期不会把跨日差额冒充为单日变化。USO掉期继续单独作为名义桶当量估算，不计入官方期货桶数变化。`,
       dataMode:
@@ -452,21 +507,76 @@ async function buildFundSnapshot(config, token) {
     ],
   };
 
+  return { outputFile, previousSnapshot, snapshot };
+}
+
+function stableSnapshotJson(snapshot) {
+  if (!snapshot) return "";
+  const comparable = structuredClone(snapshot);
+  comparable.generatedAtUtc = "";
+  for (const row of comparable.officialHistory?.rows ?? []) {
+    row.fetchedAtUtc = "";
+  }
+  return JSON.stringify(comparable);
+}
+
+async function writeSnapshots(results) {
   await mkdir(OUTPUT_DIR, { recursive: true });
-  await writeFile(outputFile, `${JSON.stringify(snapshot, null, 2)}\n`);
+  const staged = [];
+  try {
+    for (const { outputFile, snapshot } of results) {
+      const temporaryFile = `${outputFile}.${process.pid}.${Date.now()}.tmp`;
+      const serialized = `${JSON.stringify(snapshot, null, 2)}\n`;
+      await writeFile(temporaryFile, serialized, {
+        encoding: "utf8",
+        flag: "wx",
+      });
+      JSON.parse(await readFile(temporaryFile, "utf8"));
+      staged.push({ outputFile, temporaryFile, snapshot });
+    }
+    for (const { outputFile, temporaryFile } of staged) {
+      await rename(temporaryFile, outputFile);
+    }
+  } catch (error) {
+    await Promise.all(
+      staged.map(({ temporaryFile }) =>
+        unlink(temporaryFile).catch(() => undefined),
+      ),
+    );
+    throw error;
+  }
 
-  console.log(
-    `Wrote ${outputFile} (${historyRows.length} rows, as of ${asOfDate})`,
-  );
-
-  return snapshot;
+  for (const { outputFile, snapshot } of staged) {
+    console.log(
+      `Wrote ${outputFile} (${snapshot.history.records} rows, as of ${snapshot.fund.asOfDate})`,
+    );
+  }
 }
 
 async function main() {
   const token = await getPublicToken();
-  for (const fund of FUNDS) {
-    await buildFundSnapshot(fund, token);
+  const results = await Promise.all(
+    FUNDS.map((fund) => buildFundSnapshot(fund, token)),
+  );
+  const asOfDates = new Set(
+    results.map(({ snapshot }) => snapshot.fund.asOfDate),
+  );
+  if (asOfDates.size !== 1) {
+    throw new Error(
+      `USCF USO/BNO dates do not match: ${[...asOfDates].join(", ")}`,
+    );
   }
+  const hasMeaningfulChange = results.some(
+    ({ previousSnapshot, snapshot }) =>
+      stableSnapshotJson(previousSnapshot) !== stableSnapshotJson(snapshot),
+  );
+  if (!hasMeaningfulChange) {
+    console.log(
+      `No new USCF data for ${results[0].snapshot.fund.asOfDate}; snapshots unchanged`,
+    );
+    return;
+  }
+  await writeSnapshots(results);
 }
 
 if (resolve(process.argv[1] || "") === fileURLToPath(import.meta.url)) {

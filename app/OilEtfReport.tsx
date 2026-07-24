@@ -73,6 +73,8 @@ type Snapshot = {
     dateTo: string;
     records: number;
     modelFrozenThrough: string;
+    modelReferenceDate: string;
+    modelFuturesBarrelsPerShare: number;
     officialArchiveStarts: string;
     officialDailyChanges: number;
     shareInferenceMaxResidual: number;
@@ -638,7 +640,7 @@ function OilEtfFundReport({
             <span />
           </a>
           <strong>原油ETF持仓报告</strong>
-          <span className="topbar-live">冻结版</span>
+          <span className="topbar-live">日更</span>
         </header>
 
         <nav className="fund-switch" aria-label="原油ETF品种切换">
@@ -971,7 +973,7 @@ function OilEtfFundReport({
             })}
           </div>
           <p className="inline-note">
-            历史期货持仓变化均为模型估算：由官方总净资产÷NAV反推流通份额，按申赎篮子取整后乘冻结日的每份期货桶数。自
+            历史期货持仓变化均为模型估算：由官方总净资产÷NAV反推流通份额，按申赎篮子取整后乘最近一个已保存官方快照的每份期货桶数。自
             {snapshot.history.officialArchiveStarts}
             起保存USCF官方合约级快照；只有连续两个交易日都有官方快照时，日变化才按各期货合约手数×1,000桶直接相减。漏抓日仍采用模型估算，USO掉期不计入期货桶数变化。切换按美元可查看USCF官方资产变化原值。
           </p>
@@ -1221,10 +1223,6 @@ function OilEtfFundReport({
             数据截至 {snapshot.fund.asOfDate} · 历史区间{" "}
             {snapshot.history.dateFrom}—{snapshot.history.dateTo} ·{" "}
             {snapshot.history.records}个交易日
-          </p>
-          <p>
-            历史模型冻结至 {snapshot.history.modelFrozenThrough} ·
-            官方持仓归档自 {snapshot.history.officialArchiveStarts}
           </p>
           <p>本报告仅作客观数据展示，不构成任何投资建议。</p>
         </footer>

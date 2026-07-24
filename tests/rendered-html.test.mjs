@@ -40,6 +40,8 @@ test("server-renders the production USO and BNO report", async () => {
     /<title>原油ETF持仓报告｜WTI USO・Brent BNO<\/title>/i,
   );
   assert.match(html, /原油ETF持仓报告/);
+  assert.match(html, /日更/);
+  assert.doesNotMatch(html, /冻结版/);
   assert.match(html, /当前名义原油敞口/);
   assert.match(html, /美国布伦特原油基金/);
   assert.match(html, /2,591\.62/);
@@ -48,6 +50,7 @@ test("server-renders the production USO and BNO report", async () => {
   assert.match(html, /按美元/);
   assert.match(html, /历史期货持仓变化均为模型估算/);
   assert.match(html, /起保存USCF官方合约级快照/);
+  assert.doesNotMatch(html, /历史模型冻结至/);
   assert.match(html, /区间期货持仓日变化/);
   assert.match(html, /各期货合约手数×1,000桶直接相减/);
   assert.doesNotMatch(html, /data-basis-strip|basis-tag/);
@@ -90,6 +93,8 @@ test("both frozen snapshots are internally consistent and source-backed", async 
       payload.history.officialArchiveStarts,
       payload.officialHistory.dateFrom,
     );
+    assert.ok(payload.history.modelReferenceDate <= payload.fund.asOfDate);
+    assert.ok(payload.history.modelFuturesBarrelsPerShare > 0);
     assert.ok(payload.history.modelFrozenThrough <= payload.fund.asOfDate);
     assert.ok(payload.history.rows.length >= 1_200);
     assert.ok(payload.history.shareInferenceMaxResidualPctOfBasket < 0.1);
@@ -179,13 +184,15 @@ test("both frozen snapshots are internally consistent and source-backed", async 
           row.sharesOutstandingEstimate -
             payload.history.rows[index - 1].sharesOutstandingEstimate,
         );
-        assert.ok(
-          Math.abs(
-            row.futuresBarrelEquivalentChange -
-              row.sharesOutstandingChange *
-                payload.current.futuresBarrelsPerShare,
-          ) < 0.02,
-        );
+        if (row.changeBasis === "estimated") {
+          assert.ok(
+            Math.abs(
+              row.futuresBarrelEquivalentChange -
+                row.sharesOutstandingChange *
+                  payload.history.modelFuturesBarrelsPerShare,
+            ) < 0.02,
+          );
+        }
       }
       assert.ok(
         ["estimated", "estimated-gap", "official"].includes(
@@ -210,7 +217,7 @@ test("both frozen snapshots are internally consistent and source-backed", async 
         Math.abs(
           row.futuresBarrelEquivalentEstimate -
             row.sharesOutstandingEstimate *
-              payload.current.futuresBarrelsPerShare,
+              payload.history.modelFuturesBarrelsPerShare,
         ) < 0.2 || row.changeBasis === "official",
       );
     }
@@ -310,6 +317,9 @@ test("manual refresh script does not persist the public API token", async () => 
   assert.match(script, /officialHistory/);
   assert.match(script, /holdingAsOfDates/);
   assert.match(script, /futuresBarrelEquivalentChange/);
+  assert.match(script, /Promise\.all\(\s*FUNDS\.map/);
+  assert.match(script, /rename\(temporaryFile, outputFile\)/);
+  assert.match(script, /is older than the published snapshot/);
   assert.doesNotMatch(snapshot, /Bearer |var token|eyJhbGciOi/);
   assert.doesNotMatch(bnoSnapshot, /Bearer |var token|eyJhbGciOi/);
   assert.doesNotMatch(script, /Finnhub/i);
@@ -390,6 +400,55 @@ test("official archive replaces only contiguous daily changes", () => {
     freshModelRows[3].futuresBarrelEquivalentChange,
   );
   assert.equal(merged[3].changeBasis, "estimated-gap");
+});
+
+test("a published estimated gap is frozen across later refreshes", () => {
+  const priorPublishedGap = {
+    date: "2026-07-24",
+    sharesOutstandingEstimate: 110,
+    sharesOutstandingChange: 10,
+    futuresBarrelEquivalentEstimate: 10_900,
+    futuresBarrelEquivalentChange: 900,
+    changeBasis: "estimated",
+  };
+  const merged = mergeHistoryWithOfficialArchive({
+    freshModelRows: [
+      {
+        date: "2026-07-23",
+        sharesOutstandingEstimate: 100,
+        sharesOutstandingChange: 0,
+        futuresBarrelEquivalentEstimate: 10_000,
+        futuresBarrelEquivalentChange: 0,
+        changeBasis: "estimated",
+      },
+      {
+        ...priorPublishedGap,
+        futuresBarrelEquivalentEstimate: 11_300,
+        futuresBarrelEquivalentChange: 1_300,
+      },
+    ],
+    modelFrozenThrough: "2026-07-23",
+    preservedRows: [
+      {
+        date: "2026-07-23",
+        sharesOutstandingEstimate: 100,
+        sharesOutstandingChange: 0,
+        futuresBarrelEquivalentEstimate: 10_000,
+        futuresBarrelEquivalentChange: 0,
+        changeBasis: "estimated",
+      },
+      priorPublishedGap,
+    ],
+    officialRows: [
+      {
+        date: "2026-07-23",
+        sharesOutstanding: 100,
+        futuresBarrelEquivalent: 10_000,
+      },
+    ],
+  });
+
+  assert.deepEqual(merged[1], priorPublishedGap);
 });
 
 test("change matrix excludes the first observation outside the selected interval", async () => {
