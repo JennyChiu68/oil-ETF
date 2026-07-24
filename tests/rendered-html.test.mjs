@@ -49,9 +49,14 @@ test("server-renders the production USO and BNO report", async () => {
   assert.match(html, /并非历史逐日真实合约增减/);
   assert.ok(
     html.indexOf("<h2>资产净值变化一览</h2>") <
-      html.indexOf("<h2>持仓结构</h2>"),
-    "资产变化应排在合约持仓结构之前",
+      html.indexOf("<h2>当前持仓</h2>"),
+    "资产变化应排在当前持仓之前",
   );
+  assert.match(html, /2026年9月到期/);
+  assert.match(html, /原油敞口构成/);
+  assert.match(html, /查看合约明细/);
+  assert.doesNotMatch(html, /原油相关名义市值/);
+  assert.doesNotMatch(html, /现金与等价物 \/ NAV/);
   assert.doesNotMatch(html, /<h2>关键数据<\/h2>/);
   assert.doesNotMatch(html, /溢折价监控/);
   assert.doesNotMatch(html, /极值与展期监控/);

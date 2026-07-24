@@ -140,9 +140,36 @@ function formatHundredMillion(value: number, digits = 2) {
 }
 
 function formatQuantity(value: number, type: string) {
-  if (type === "Futures") return `${formatNumber(value, 0)} 手`;
+  if (type === "Futures") {
+    return `${formatNumber(value, 0)}手 · ${formatNumber(value / 10, 2)}万桶`;
+  }
   if (type === "Swap") return `${formatNumber(value / 10_000, 2)} 万桶等值`;
   return formatUsd(value);
+}
+
+function formatContractExpiry(name: string) {
+  const match = name.match(
+    /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)(\d{2})\b/i,
+  );
+  if (!match) return "到期月份以官方合约为准";
+
+  const monthByCode: Record<string, number> = {
+    jan: 1,
+    feb: 2,
+    mar: 3,
+    apr: 4,
+    may: 5,
+    jun: 6,
+    jul: 7,
+    aug: 8,
+    sep: 9,
+    sept: 9,
+    oct: 10,
+    nov: 11,
+    dec: 12,
+  };
+  const month = monthByCode[match[1].toLowerCase()];
+  return `20${match[2]}年${month}月到期`;
 }
 
 function metricValue(row: HistoryRow, metric: ChartMetric) {
@@ -332,9 +359,7 @@ function OilEtfFundReport({
   const latestDate = snapshot.history.dateTo;
   const [chartRange, setChartRange] = useState<ChartRange>("1y");
   const [chartMetric, setChartMetric] = useState<ChartMetric>("netAssets");
-  const [holdingView, setHoldingView] = useState<"structure" | "table">(
-    "structure",
-  );
+  const [showHoldingDetails, setShowHoldingDetails] = useState(false);
   const [analysisPeriod, setAnalysisPeriod] =
     useState<AnalysisPeriod>("year");
   const [analysisUnit, setAnalysisUnit] = useState<AnalysisUnit>("barrels");
@@ -554,6 +579,24 @@ function OilEtfFundReport({
 
   const analysisSuffix =
     analysisUnit === "barrels" ? "万桶等值" : "亿美元";
+  const oilHoldings = snapshot.holdings.filter(
+    (holding) =>
+      holding.holdingType === "Futures" ||
+      holding.holdingType === "Swap",
+  );
+  const primaryFutures = oilHoldings
+    .filter((holding) => holding.holdingType === "Futures")
+    .sort((a, b) => b.quantity - a.quantity)[0];
+  const futuresShare =
+    snapshot.current.oilBarrelEquivalent > 0
+      ? snapshot.current.futuresBarrelEquivalent /
+        snapshot.current.oilBarrelEquivalent
+      : 0;
+  const swapShare =
+    snapshot.current.oilBarrelEquivalent > 0
+      ? snapshot.current.swapBarrelEquivalent /
+        snapshot.current.oilBarrelEquivalent
+      : 0;
 
   return (
     <main className="report-shell">
@@ -970,129 +1013,109 @@ function OilEtfFundReport({
           <div className="section-heading">
             <div>
               <p className="section-kicker">PORTFOLIO</p>
-              <h2>持仓结构</h2>
+              <h2>当前持仓</h2>
             </div>
-            <div className="view-switch" aria-label="持仓展示方式">
-              <button
-                type="button"
-                className={holdingView === "structure" ? "active" : ""}
-                onClick={() => setHoldingView("structure")}
-              >
-                图表
-              </button>
-              <button
-                type="button"
-                className={holdingView === "table" ? "active" : ""}
-                onClick={() => setHoldingView("table")}
-              >
-                表格
-              </button>
+            <span className="date-badge">
+              截至 {snapshot.fund.asOfDate.slice(5).replace("-", ".")}
+            </span>
+          </div>
+
+          <article className="primary-contract">
+            <div className="primary-contract-head">
+              <span className="position-type">主力期货</span>
+              <strong>{primaryFutures?.ticker ?? "—"}</strong>
+            </div>
+            <div className="primary-contract-title">
+              <div>
+                <h3>{snapshot.fund.benchmarkZh}期货</h3>
+                <p>
+                  {primaryFutures
+                    ? formatContractExpiry(primaryFutures.name)
+                    : "暂无主力合约"}
+                </p>
+              </div>
+            </div>
+            <div className="primary-contract-metrics">
+              <div>
+                <span>合约数量</span>
+                <strong>
+                  {primaryFutures
+                    ? `${formatNumber(primaryFutures.quantity, 0)}手`
+                    : "—"}
+                </strong>
+              </div>
+              <div>
+                <span>对应桶数</span>
+                <strong>
+                  {primaryFutures
+                    ? `${formatNumber(primaryFutures.quantity / 10, 2)}万桶`
+                    : "—"}
+                </strong>
+              </div>
+            </div>
+          </article>
+
+          <div className="exposure-mix">
+            <div className="exposure-mix-head">
+              <strong>原油敞口构成</strong>
+              <span>按桶等值</span>
+            </div>
+            <div
+              className="exposure-mix-bar"
+              aria-label={`期货${formatNumber(futuresShare * 100, 1)}%，掉期${formatNumber(swapShare * 100, 1)}%`}
+            >
+              <span
+                className="futures"
+                style={{ width: `${futuresShare * 100}%` }}
+              />
+              <span
+                className="swaps"
+                style={{ width: `${swapShare * 100}%` }}
+              />
+            </div>
+            <div className="exposure-mix-legend">
+              <div>
+                <span className="legend-dot futures" />
+                <span>期货</span>
+                <strong>{formatNumber(futuresShare * 100, 1)}%</strong>
+              </div>
+              <div>
+                <span className="legend-dot swaps" />
+                <span>掉期</span>
+                <strong>{formatNumber(swapShare * 100, 1)}%</strong>
+              </div>
             </div>
           </div>
 
-          {holdingView === "structure" ? (
-            <div className="exposure-panel">
-              <div className="exposure-total">
-                <span>原油相关名义市值</span>
-                <strong>
-                  {formatHundredMillion(snapshot.current.oilNotional)}
-                </strong>
-              </div>
-              <div className="meter-item">
-                <div>
-                  <span>原油合约名义敞口 / NAV</span>
-                  <strong>
-                    {formatNumber(
-                      snapshot.current.oilExposurePctOfNav * 100,
-                      2,
-                    )}
-                    %
-                  </strong>
-                </div>
-                <div className="meter-track">
-                  <span
-                    className="meter-fill oil"
-                    style={{
-                      width: `${Math.min(
-                        snapshot.current.oilExposurePctOfNav * 100,
-                        100,
-                      )}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="meter-item">
-                <div>
-                  <span>现金与等价物 / NAV</span>
-                  <strong>
-                    {formatNumber(
-                      (snapshot.current.collateralValue /
-                        snapshot.current.netAssets) *
-                        100,
-                      2,
-                    )}
-                    %
-                  </strong>
-                </div>
-                <div className="meter-track">
-                  <span
-                    className="meter-fill cash"
-                    style={{
-                      width: `${Math.min(
-                        (snapshot.current.collateralValue /
-                          snapshot.current.netAssets) *
-                          100,
-                        100,
-                      )}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="position-cards">
-                {snapshot.holdings
-                  .filter(
-                    (holding) =>
-                      holding.holdingType === "Futures" ||
-                      holding.holdingType === "Swap",
-                  )
-                  .map((holding) => (
-                    <article key={`${holding.name}-${holding.ticker}`}>
-                      <div>
-                        <span className="position-type">
-                          {holding.category}
-                        </span>
-                        <small>{holding.ticker}</small>
-                      </div>
-                      <h3>{holding.name}</h3>
-                      <div className="position-meta">
-                        <span>
-                          {formatQuantity(holding.quantity, holding.holdingType)}
-                        </span>
-                        <strong>
-                          {formatHundredMillion(holding.marketValue ?? 0)}
-                        </strong>
-                      </div>
-                    </article>
-                  ))}
-              </div>
-            </div>
-          ) : (
+          <button
+            type="button"
+            className="holding-detail-toggle"
+            aria-expanded={showHoldingDetails}
+            onClick={() => setShowHoldingDetails((isOpen) => !isOpen)}
+          >
+            <span>
+              {showHoldingDetails ? "收起合约明细" : "查看合约明细"}
+            </span>
+            <i aria-hidden="true" />
+          </button>
+
+          {showHoldingDetails ? (
             <div className="holding-table-wrap">
               <table className="holding-table">
                 <thead>
                   <tr>
-                    <th>持仓</th>
-                    <th>数量</th>
-                    <th>市值</th>
+                    <th>合约</th>
+                    <th>数量 / 桶数</th>
+                    <th>名义市值</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {snapshot.holdings.map((holding) => (
+                  {oilHoldings.map((holding) => (
                     <tr key={`${holding.name}-${holding.ticker}`}>
                       <td>
                         <strong>{holding.name}</strong>
                         <span>
-                          {holding.category} · {holding.ticker || "USD"}
+                          {holding.category} · {holding.ticker}
                         </span>
                       </td>
                       <td>
@@ -1109,10 +1132,7 @@ function OilEtfFundReport({
                 </tbody>
               </table>
             </div>
-          )}
-          <p className="inline-note">
-            期货名义市值与抵押资产会同时列示，因此持仓权重合计可能超过100%。
-          </p>
+          ) : null}
         </section>
 
         <footer className="report-footer">
