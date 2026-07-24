@@ -43,6 +43,10 @@ test("server-renders the production USO and BNO report", async () => {
   assert.match(html, /美国布伦特原油基金/);
   assert.match(html, /2,628\.03/);
   assert.match(html, /资产净值变化一览/);
+  assert.match(html, /按桶/);
+  assert.match(html, /按美元/);
+  assert.match(html, /-159\.70/);
+  assert.match(html, /并非历史逐日真实合约增减/);
   assert.match(html, /溢折价监控/);
   assert.match(html, /数据口径与来源/);
   assert.match(
@@ -101,6 +105,16 @@ test("both frozen snapshots are internally consistent and source-backed", async 
     assert.ok(
       payload.sources.every((source) => source.url.startsWith("https://")),
     );
+    assert.match(
+      payload.methodology.assetChangeBarrels,
+      /不代表历史逐日真实合约增减/,
+    );
+
+    const latest = payload.history.rows.at(-1);
+    const latestBarrelEquivalentChange =
+      (latest.netAssetsChange * payload.current.oilBarrelEquivalent) /
+      payload.current.netAssets;
+    assert.ok(Number.isFinite(latestBarrelEquivalentChange));
   }
 
   const bno = JSON.parse(

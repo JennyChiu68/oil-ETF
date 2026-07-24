@@ -66,6 +66,7 @@ type Snapshot = {
   methodology: {
     headline: string;
     netAssets: string;
+    assetChangeBarrels: string;
     dataMode: string;
   };
   sources: Array<{
@@ -79,7 +80,7 @@ type FundSymbol = "USO" | "BNO";
 type ChartMetric = "nav" | "netAssets";
 type ChartRange = "1m" | "1y" | "3y" | "5y";
 type AnalysisPeriod = "month" | "year" | "5y" | "custom";
-type AnalysisUnit = "amount" | "percent";
+type AnalysisUnit = "barrels" | "amount";
 type MatrixMode = "month" | "week" | "year";
 
 const RANGE_LABELS: Record<ChartRange, string> = {
@@ -163,13 +164,6 @@ function isoWeek(dateString: string) {
   return Math.ceil(
     ((date.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7,
   );
-}
-
-function compoundChange(rows: HistoryRow[]) {
-  return rows.reduce(
-    (result, row) => result * (1 + row.netAssetsChangePct),
-    1,
-  ) - 1;
 }
 
 function HistoryCanvas({
@@ -343,7 +337,7 @@ function OilEtfFundReport({
   );
   const [analysisPeriod, setAnalysisPeriod] =
     useState<AnalysisPeriod>("year");
-  const [analysisUnit, setAnalysisUnit] = useState<AnalysisUnit>("amount");
+  const [analysisUnit, setAnalysisUnit] = useState<AnalysisUnit>("barrels");
   const [matrixMode, setMatrixMode] = useState<MatrixMode>("month");
   const [customStart, setCustomStart] = useState(snapshot.history.dateFrom);
   const [customEnd, setCustomEnd] = useState(snapshot.history.dateTo);
@@ -352,6 +346,8 @@ function OilEtfFundReport({
     end: snapshot.history.dateTo,
   });
   const [visibleDays, setVisibleDays] = useState(12);
+  const barrelEquivalentPerUsd =
+    snapshot.current.oilBarrelEquivalent / snapshot.current.netAssets;
 
   const chartRows = useMemo(() => {
     const start = chartStartDate(latestDate, chartRange);
@@ -389,16 +385,17 @@ function OilEtfFundReport({
     const daily = analysisRows.slice(1).map((row) => ({
       row,
       value:
-        analysisUnit === "amount"
-          ? row.netAssetsChange / 100_000_000
-          : row.netAssetsChangePct * 100,
+        analysisUnit === "barrels"
+          ? (row.netAssetsChange * barrelEquivalentPerUsd) / 10_000
+          : row.netAssetsChange / 100_000_000,
     }));
     const first = analysisRows[0];
     const last = analysisRows.at(-1) ?? first;
     const net =
-      analysisUnit === "amount"
-        ? (last.netAssets - first.netAssets) / 100_000_000
-        : (last.netAssets / first.netAssets - 1) * 100;
+      analysisUnit === "barrels"
+        ? ((last.netAssets - first.netAssets) * barrelEquivalentPerUsd) /
+          10_000
+        : (last.netAssets - first.netAssets) / 100_000_000;
     const up = daily
       .filter((item) => item.value > 0)
       .reduce((sum, item) => sum + item.value, 0);
@@ -413,7 +410,11 @@ function OilEtfFundReport({
       biggestDown: sorted[0] ?? null,
       biggestUp: sorted.at(-1) ?? null,
     };
-  }, [analysisRows, analysisUnit]);
+  }, [
+    analysisRows,
+    analysisUnit,
+    barrelEquivalentPerUsd,
+  ]);
 
   const matrixYears = useMemo(
     () =>
@@ -457,12 +458,17 @@ function OilEtfFundReport({
     const entries = Array.from(grouped.entries())
       .map(([key, group]) => {
         const value =
-          analysisUnit === "amount"
+          analysisUnit === "barrels"
             ? group.rows.reduce(
-                (sum, row) => sum + row.netAssetsChange / 100_000_000,
+                (sum, row) =>
+                  sum +
+                  (row.netAssetsChange * barrelEquivalentPerUsd) / 10_000,
                 0,
               )
-            : compoundChange(group.rows) * 100;
+            : group.rows.reduce(
+                (sum, row) => sum + row.netAssetsChange / 100_000_000,
+                0,
+              );
         return { key, label: group.label, order: group.order, value };
       })
       .sort((a, b) => a.order - b.order);
@@ -495,7 +501,13 @@ function OilEtfFundReport({
       });
     }
     return entries;
-  }, [activeMatrixYear, analysisRows, analysisUnit, matrixMode]);
+  }, [
+    activeMatrixYear,
+    analysisRows,
+    analysisUnit,
+    barrelEquivalentPerUsd,
+    matrixMode,
+  ]);
 
   const matrixMax = Math.max(
     ...matrixItems.map((item) =>
@@ -512,11 +524,15 @@ function OilEtfFundReport({
         .map((row) => ({
           row,
           value:
-            analysisUnit === "amount"
-              ? row.netAssetsChange / 100_000_000
-              : row.netAssetsChangePct * 100,
+            analysisUnit === "barrels"
+              ? (row.netAssetsChange * barrelEquivalentPerUsd) / 10_000
+              : row.netAssetsChange / 100_000_000,
         })),
-    [analysisRows, analysisUnit],
+    [
+      analysisRows,
+      analysisUnit,
+      barrelEquivalentPerUsd,
+    ],
   );
   const dailyMax = Math.max(
     ...dailyRows.map((item) => Math.abs(item.value)),
@@ -542,7 +558,8 @@ function OilEtfFundReport({
   const latestFutures = snapshot.holdings.find(
     (holding) => holding.holdingType === "Futures",
   );
-  const analysisSuffix = analysisUnit === "amount" ? "亿美元" : "%";
+  const analysisSuffix =
+    analysisUnit === "barrels" ? "万桶等值" : "亿美元";
 
   return (
     <main className="report-shell">
@@ -900,20 +917,20 @@ function OilEtfFundReport({
               <p className="section-kicker">ASSET CHANGE</p>
               <h2>资产净值变化一览</h2>
             </div>
-            <div className="unit-switch">
+            <div className="unit-switch" aria-label="资产变化计价单位">
+              <button
+                type="button"
+                className={analysisUnit === "barrels" ? "active" : ""}
+                onClick={() => setAnalysisUnit("barrels")}
+              >
+                按桶
+              </button>
               <button
                 type="button"
                 className={analysisUnit === "amount" ? "active" : ""}
                 onClick={() => setAnalysisUnit("amount")}
               >
-                按金额
-              </button>
-              <button
-                type="button"
-                className={analysisUnit === "percent" ? "active" : ""}
-                onClick={() => setAnalysisUnit("percent")}
-              >
-                按比例
+                按美元
               </button>
             </div>
           </div>
@@ -1076,7 +1093,8 @@ function OilEtfFundReport({
             })}
           </div>
           <p className="inline-note">
-            资产净值变化包含油价、申赎、抵押品收益和费用影响，不等同于净资金流。
+            按桶为资产变化的折算桶等值，采用当前组合“名义桶数 /
+            总净资产”统一换算；并非历史逐日真实合约增减。切换按美元可查看USCF官方资产变化原值。
           </p>
         </section>
 
@@ -1086,7 +1104,25 @@ function OilEtfFundReport({
               <p className="section-kicker">DAILY DETAIL</p>
               <h2>区间日变化</h2>
             </div>
-            <span className="date-badge">{PERIOD_LABELS[analysisPeriod]}</span>
+            <div className="daily-heading-tools">
+              <span className="date-badge">{PERIOD_LABELS[analysisPeriod]}</span>
+              <div className="unit-switch" aria-label="区间日变化计价单位">
+                <button
+                  type="button"
+                  className={analysisUnit === "barrels" ? "active" : ""}
+                  onClick={() => setAnalysisUnit("barrels")}
+                >
+                  按桶
+                </button>
+                <button
+                  type="button"
+                  className={analysisUnit === "amount" ? "active" : ""}
+                  onClick={() => setAnalysisUnit("amount")}
+                >
+                  按美元
+                </button>
+              </div>
+            </div>
           </div>
           <ul className="daily-list">
             {dailyRows.slice(0, visibleDays).map(({ row, value }) => {
@@ -1130,6 +1166,9 @@ function OilEtfFundReport({
               加载更多
             </button>
           ) : null}
+          <p className="inline-note">
+            桶数为资产净值变化的单位换算，包含油价、申赎、抵押品收益和费用影响，不代表基金当日实际买卖的原油桶数。
+          </p>
         </section>
 
         <section className="card monitor-card">
@@ -1266,6 +1305,10 @@ function OilEtfFundReport({
             </div>
             <div>
               <span>03</span>
+              <p>{snapshot.methodology.assetChangeBarrels}</p>
+            </div>
+            <div>
+              <span>04</span>
               <p>{snapshot.methodology.dataMode}</p>
             </div>
           </div>

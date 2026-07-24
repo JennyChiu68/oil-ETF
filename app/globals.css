@@ -812,6 +812,16 @@ a {
   align-items: center;
 }
 
+.daily-heading-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.daily-heading-tools .unit-switch button {
+  padding-inline: 7px;
+}
+
 .period-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

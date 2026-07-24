@@ -207,6 +207,8 @@ async function buildFundSnapshot(config, token) {
           : `名义桶等值 = ${config.benchmark}期货合约数量×1,000桶/手。当前持仓不含掉期，桶数可按交易所标准合约规格精确换算，但不代表基金持有实物原油。`,
       netAssets:
         "历史总资产净值（Net Assets）和单位净值（NAV）均来自USCF官方历史净值接口；总资产变化包含市场价格变动、申赎及费用影响，不等同于净资金流。",
+      assetChangeBarrels:
+        "历史资产变化的桶等值 = 当期美元变化×当前名义桶等值÷当前总净资产。该指标只做单位换算，方便与美元切换比较，不代表历史逐日真实合约增减。",
       dataMode:
         "本文件是一次性冻结快照，不会在页面端轮询。运行 npm run data:refresh 可人工生成新快照。",
     },
