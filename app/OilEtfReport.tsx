@@ -706,56 +706,6 @@ function OilEtfFundReport({
           </div>
         </section>
 
-        <section className="card snapshot-card">
-          <div className="section-heading">
-            <div>
-              <p className="section-kicker">LATEST SNAPSHOT</p>
-              <h2>关键数据</h2>
-            </div>
-            <span className="date-badge">
-              {snapshot.fund.asOfDate.replaceAll("-", ".")}
-            </span>
-          </div>
-          <div className="summary-grid">
-            <div className="summary-box">
-              <span>单位净值</span>
-              <strong>{formatUsd(snapshot.current.nav)}</strong>
-              <small className="up">
-                {formatSigned(snapshot.current.navChangePct * 100, 2, "%")}
-              </small>
-            </div>
-            <div className="summary-box">
-              <span>总资产净值</span>
-              <strong>
-                {formatNumber(snapshot.current.netAssets / 100_000_000, 2)}亿
-              </strong>
-              <small>美元</small>
-            </div>
-            <div className="summary-box">
-              <span>流通份额</span>
-              <strong>
-                {formatNumber(
-                  snapshot.current.sharesOutstanding / 10_000,
-                  2,
-                )}
-                万
-              </strong>
-              <small>基金份额</small>
-            </div>
-            <div className="summary-box">
-              <span>申赎记录规模</span>
-              <strong>
-                {formatNumber(
-                  Math.abs(snapshot.current.sharesCreatedRedeemed) / 10_000,
-                  0,
-                )}
-                万
-              </strong>
-              <small>份 · 不解读方向</small>
-            </div>
-          </div>
-        </section>
-
         <section className="card analysis-card">
           <div className="section-heading analysis-heading">
             <div>

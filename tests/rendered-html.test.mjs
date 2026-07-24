@@ -52,6 +52,7 @@ test("server-renders the production USO and BNO report", async () => {
       html.indexOf("<h2>持仓结构</h2>"),
     "资产变化应排在合约持仓结构之前",
   );
+  assert.doesNotMatch(html, /<h2>关键数据<\/h2>/);
   assert.doesNotMatch(html, /溢折价监控/);
   assert.doesNotMatch(html, /极值与展期监控/);
   assert.doesNotMatch(html, /数据口径与来源/);
