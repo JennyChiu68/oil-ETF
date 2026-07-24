@@ -166,3 +166,32 @@ test("manual refresh script does not persist the public API token", async () => 
   assert.doesNotMatch(snapshot, /Bearer |var token|eyJhbGciOi/);
   assert.doesNotMatch(bnoSnapshot, /Bearer |var token|eyJhbGciOi/);
 });
+
+test("change matrix excludes the first observation outside the selected interval", async () => {
+  const component = await readFile(
+    new URL("../app/OilEtfReport.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(component, /analysisRows\.slice\(1\)\.forEach\(\(row\) =>/);
+
+  for (const symbol of ["uso", "bno"]) {
+    const payload = JSON.parse(
+      await readFile(
+        new URL(`../public/data/${symbol}-snapshot.json`, import.meta.url),
+        "utf8",
+      ),
+    );
+    const year = payload.fund.asOfDate.slice(0, 4);
+    const rows = payload.history.rows.filter((row) =>
+      row.date.startsWith(year),
+    );
+    const intervalChange =
+      rows.at(-1).netAssets - rows[0].netAssets;
+    const matrixChange = rows
+      .slice(1)
+      .reduce((sum, row) => sum + row.netAssetsChange, 0);
+
+    assert.ok(Math.abs(intervalChange - matrixChange) < 0.01);
+  }
+});

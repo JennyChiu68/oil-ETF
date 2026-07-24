@@ -458,7 +458,7 @@ function OilEtfFundReport({
       string,
       { label: string; rows: HistoryRow[]; order: number }
     >();
-    analysisRows.forEach((row) => {
+    analysisRows.slice(1).forEach((row) => {
       const year = Number(row.date.slice(0, 4));
       if (matrixMode !== "year" && year !== activeMatrixYear) return;
       let key = String(year);
