@@ -160,36 +160,17 @@ a {
 }
 
 .fund-switch button {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: baseline;
-  gap: 2px 8px;
-  padding: 10px 11px;
+  min-height: 48px;
+  padding: 10px 12px;
   color: #687069;
-  text-align: left;
+  text-align: center;
   background: transparent;
   border: 0;
   border-radius: 10px;
   cursor: pointer;
-}
-
-.fund-switch button > span {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
-}
-
-.fund-switch button > strong {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-}
-
-.fund-switch button > small {
-  grid-column: 1 / -1;
-  overflow: hidden;
-  color: #929790;
-  font-size: 8px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 
 .fund-switch button.active {
@@ -198,10 +179,6 @@ a {
     linear-gradient(125deg, rgba(215, 139, 45, 0.18), transparent 62%),
     var(--oil);
   box-shadow: 0 6px 14px rgba(30, 38, 31, 0.18);
-}
-
-.fund-switch button.active > small {
-  color: rgba(249, 246, 235, 0.58);
 }
 
 .hero-card,

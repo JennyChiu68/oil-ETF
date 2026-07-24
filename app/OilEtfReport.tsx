@@ -567,9 +567,7 @@ function OilEtfFundReport({
                 aria-pressed={isActive}
                 onClick={() => onSymbolChange(symbol)}
               >
-                <span>{label}</span>
-                <strong>{symbol}</strong>
-                <small>{symbol === "USO" ? "美国原油基金" : "美国布伦特原油基金"}</small>
+                {label}
               </button>
             );
           })}
