@@ -1094,9 +1094,10 @@ a {
 
 .daily-list li {
   display: grid;
-  grid-template-columns: 88px 1fr 76px;
+  grid-template-columns: 88px 1fr;
   align-items: center;
   gap: 9px;
+  min-height: 38px;
 }
 
 .daily-date {
@@ -1139,30 +1140,47 @@ a {
   background: #dcece1;
 }
 
-.daily-bar {
+.daily-diverging {
   position: relative;
-  height: 10px;
-  overflow: hidden;
-  background: #efeee9;
-  border-radius: 999px;
+  height: 38px;
 }
 
-.daily-bar span {
+.daily-zero-axis {
   position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
+  top: 1px;
+  bottom: 1px;
+  left: 50%;
+  width: 1px;
+  background: #d9dad6;
 }
 
-.daily-bar .positive {
-  background: linear-gradient(90deg, #e8a9a2, var(--up));
+.daily-fill {
+  position: absolute;
+  top: 13px;
+  height: 12px;
+  min-width: 3px;
 }
 
-.daily-bar .negative {
-  background: linear-gradient(90deg, #9dc9aa, var(--down));
+.daily-fill.increase {
+  background: linear-gradient(90deg, #e7655b, var(--up));
+  border-radius: 0 4px 4px 0;
+}
+
+.daily-fill.decrease {
+  background: linear-gradient(90deg, var(--down), #55a56f);
+  border-radius: 4px 0 0 4px;
 }
 
 .daily-value {
-  text-align: right;
+  position: absolute;
+  top: 7px;
+  min-width: 42px;
+  white-space: nowrap;
+}
+
+.daily-value.increase,
+.daily-value.flat {
+  text-align: left;
 }
 
 .daily-value strong,
@@ -1171,14 +1189,71 @@ a {
 }
 
 .daily-value strong {
-  font-size: 11px;
+  font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
 
 .daily-value span {
-  margin-top: 1px;
+  margin-top: 0;
   color: var(--muted);
-  font-size: 7px;
+  font-size: 6px;
+}
+
+.daily-value.increase strong {
+  color: var(--up);
+}
+
+.daily-value.decrease {
+  text-align: right;
+}
+
+.daily-value.decrease strong {
+  color: var(--down);
+}
+
+.daily-value.flat strong {
+  color: var(--muted);
+}
+
+.daily-axis-footer {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 9px;
+  margin-top: 5px;
+}
+
+.daily-axis-footer > div {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px solid #dedfd9;
+  font-size: 8px;
+}
+
+.daily-axis-footer > div::before {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 1px;
+  height: 7px;
+  background: #cfd1cc;
+  content: "";
+}
+
+.daily-axis-footer strong:first-child {
+  color: var(--down);
+}
+
+.daily-axis-footer strong:last-child {
+  color: var(--up);
+}
+
+.daily-axis-footer > div > span {
+  position: absolute;
+  left: 50%;
+  color: var(--muted);
+  transform: translateX(-50%);
 }
 
 .load-more {
@@ -1495,7 +1570,12 @@ select:focus-visible {
   }
 
   .daily-list li {
-    grid-template-columns: 76px 1fr 66px;
+    grid-template-columns: 76px 1fr;
+    gap: 6px;
+  }
+
+  .daily-axis-footer {
+    grid-template-columns: 76px 1fr;
     gap: 6px;
   }
 

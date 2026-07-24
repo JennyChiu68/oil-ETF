@@ -966,35 +966,70 @@ function OilEtfFundReport({
             {dailyRows.slice(0, visibleDays).map(({ row, value }) => {
               const isHigh = row.date === analysisStats.biggestUp?.row.date;
               const isLow = row.date === analysisStats.biggestDown?.row.date;
+              const barWidth =
+                value === 0
+                  ? 0
+                  : Math.max(1.5, (Math.abs(value) / dailyMax) * 31);
+              const valuePosition =
+                value > 0
+                  ? { left: `calc(50% + ${barWidth}% + 5px)` }
+                  : value < 0
+                    ? { right: `calc(50% + ${barWidth}% + 5px)` }
+                    : { left: "calc(50% + 6px)" };
               return (
-                <li key={row.date}>
+                <li
+                  key={row.date}
+                  aria-label={`${row.date}：${formatSigned(value, 2, analysisSuffix)}`}
+                >
                   <div className="daily-date">
                     <strong>{formatDateCn(row.date, false)}</strong>
                     <span>{row.date.slice(0, 4)}</span>
                     {isHigh ? <em className="up-tag">区间最高</em> : null}
                     {isLow ? <em className="down-tag">区间最低</em> : null}
                   </div>
-                  <div className="daily-bar">
-                    <span
-                      className={value >= 0 ? "positive" : "negative"}
-                      style={{
-                        width: `${Math.max(
-                          3,
-                          (Math.abs(value) / dailyMax) * 100,
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="daily-value">
-                    <strong className={value >= 0 ? "up" : "down"}>
+                  <div className="daily-diverging" aria-hidden="true">
+                    <span className="daily-zero-axis" />
+                    {value !== 0 ? (
+                      <span
+                        className={`daily-fill ${
+                          value > 0 ? "increase" : "decrease"
+                        }`}
+                        style={{
+                          width: `${barWidth}%`,
+                          ...(value > 0
+                            ? { left: "50%" }
+                            : { right: "50%" }),
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`daily-value ${
+                        value > 0
+                          ? "increase"
+                          : value < 0
+                            ? "decrease"
+                            : "flat"
+                      }`}
+                      style={valuePosition}
+                    >
+                      <strong>
                       {formatSigned(value, 2)}
-                    </strong>
-                    <span>{analysisSuffix}</span>
+                      </strong>
+                      <span>{analysisSuffix}</span>
+                    </div>
                   </div>
                 </li>
               );
             })}
           </ul>
+          <div className="daily-axis-footer" aria-hidden="true">
+            <span />
+            <div>
+              <strong>减少</strong>
+              <span>0</span>
+              <strong>增加</strong>
+            </div>
+          </div>
           {visibleDays < dailyRows.length ? (
             <button
               type="button"
