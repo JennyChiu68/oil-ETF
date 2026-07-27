@@ -44,7 +44,19 @@ test("server-renders the production USO and BNO report", async () => {
   assert.doesNotMatch(html, /冻结版/);
   assert.match(html, /当前名义原油敞口/);
   assert.match(html, /美国布伦特原油基金/);
-  assert.match(html, /2,591\.62/);
+  const usoSnapshot = JSON.parse(
+    await readFile(
+      new URL("../public/data/uso-snapshot.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const currentExposureWanBarrels = (
+    usoSnapshot.current.oilBarrelEquivalent / 10_000
+  ).toLocaleString("zh-CN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  assert.ok(html.includes(currentExposureWanBarrels));
   assert.match(html, /持仓变化一览/);
   assert.match(html, /按桶/);
   assert.match(html, /按美元/);
