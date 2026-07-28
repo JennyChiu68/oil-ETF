@@ -463,6 +463,48 @@ test("a published estimated gap is frozen across later refreshes", () => {
   assert.deepEqual(merged[1], priorPublishedGap);
 });
 
+test("a rolling five-year window resets only its boundary changes", () => {
+  const merged = mergeHistoryWithOfficialArchive({
+    freshModelRows: [
+      {
+        date: "2021-07-28",
+        nav: 49.83,
+        netAssets: 2_890_327_546.86,
+        netAssetsChange: 0,
+        netAssetsChangePct: 0,
+        sharesOutstandingEstimate: 58_000_000,
+        sharesOutstandingChange: 0,
+        futuresBarrelEquivalentEstimate: 80_000_000,
+        futuresBarrelEquivalentChange: 0,
+        changeBasis: "estimated",
+      },
+    ],
+    modelFrozenThrough: "2026-07-23",
+    preservedRows: [
+      {
+        date: "2021-07-28",
+        nav: 49.82,
+        netAssets: 2_890_327_546.86,
+        netAssetsChange: 25_356_396.21,
+        netAssetsChangePct: 0.0088,
+        sharesOutstandingEstimate: 58_023_603,
+        sharesOutstandingChange: 400_000,
+        futuresBarrelEquivalentEstimate: 80_652_000,
+        futuresBarrelEquivalentChange: 556_000,
+        changeBasis: "estimated",
+      },
+    ],
+  });
+
+  assert.equal(merged[0].nav, 49.83);
+  assert.equal(merged[0].netAssetsChange, 0);
+  assert.equal(merged[0].netAssetsChangePct, 0);
+  assert.equal(merged[0].sharesOutstandingEstimate, 58_023_603);
+  assert.equal(merged[0].sharesOutstandingChange, 0);
+  assert.equal(merged[0].futuresBarrelEquivalentEstimate, 80_652_000);
+  assert.equal(merged[0].futuresBarrelEquivalentChange, 0);
+});
+
 test("change matrix excludes the first observation outside the selected interval", async () => {
   const component = await readFile(
     new URL("../app/OilEtfReport.tsx", import.meta.url),

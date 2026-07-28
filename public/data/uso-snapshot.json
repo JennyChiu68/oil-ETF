@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "generatedAtUtc": "2026-07-27T07:05:39.221Z",
+  "generatedAtUtc": "2026-07-28T02:53:25.992Z",
   "fund": {
     "symbol": "USO",
     "name": "United States Oil Fund, LP",
@@ -8,32 +8,32 @@
     "sponsor": "United States Commodity Funds, LLC",
     "exchange": "NYSE Arca",
     "inceptionDate": "2006-04-10",
-    "asOfDate": "2026-07-24",
+    "asOfDate": "2026-07-27",
     "benchmark": "WTI",
     "benchmarkZh": "WTI原油",
     "contractVenue": "NYMEX"
   },
   "current": {
-    "nav": 135.96,
-    "navChange": -4.38,
-    "navChangePct": -0.0312,
-    "netAssets": 2314603841.26,
-    "sharesOutstanding": 17023603,
-    "sharesCreatedRedeemed": 600000,
-    "marketPrice": 136.68,
-    "premiumDiscountPct": 0.0053,
-    "bid": 136.66,
-    "ask": 136.7,
-    "oilBarrelEquivalent": 26834240.74,
-    "futuresBarrelEquivalent": 24025000,
-    "swapBarrelEquivalent": 2809240.74,
-    "futuresReferencePrice": 89.31,
-    "barrelsPerShare": 1.5762962,
-    "futuresBarrelsPerShare": 1.41127586,
+    "nav": 125.79,
+    "navChange": -10.17,
+    "navChangePct": -0.0748,
+    "netAssets": 2216906231.66,
+    "sharesOutstanding": 17623603,
+    "sharesCreatedRedeemed": -400000,
+    "marketPrice": 124.77,
+    "premiumDiscountPct": -0.0081,
+    "bid": 124.75,
+    "ask": 124.79,
+    "oilBarrelEquivalent": 26227242.06,
+    "futuresBarrelEquivalent": 23418000,
+    "swapBarrelEquivalent": 2809242.06,
+    "futuresReferencePrice": 82.61,
+    "barrelsPerShare": 1.48818843,
+    "futuresBarrelsPerShare": 1.32878617,
     "creationBasketShares": 100000,
-    "oilNotional": 2396566040.54,
-    "oilExposurePctOfNav": 1.0354,
-    "collateralValue": 1903706450.41,
+    "oilNotional": 2166632466.2,
+    "oilExposurePctOfNav": 0.9773,
+    "collateralValue": 1985262942.81,
     "barrelEquivalentType": "estimated"
   },
   "holdings": [
@@ -41,43 +41,43 @@
       "category": "期货",
       "name": "WTI CRUDE FUTURE Sep26",
       "ticker": "CLU6",
-      "quantity": 24025,
-      "price": 89.31,
-      "marketValue": 2145672750,
-      "weight": 0.927,
+      "quantity": 23418,
+      "price": 82.61,
+      "marketValue": 1934560980,
+      "weight": 0.8726,
       "holdingType": "Futures",
-      "barrelEquivalent": 24025000
+      "barrelEquivalent": 23418000
     },
     {
       "category": "掉期",
       "name": "TRS MACQUARIE MQCP361E 07212026",
       "ticker": "MQCP361ET",
       "quantity": 2195848.14,
-      "price": 59.6688,
-      "marketValue": 131023623.5,
-      "weight": 0.0566,
+      "price": 55.1925,
+      "marketValue": 121194348.47,
+      "weight": 0.0547,
       "holdingType": "Swap",
-      "barrelEquivalent": 1467065.5413727465
+      "barrelEquivalent": 1467066.3172739379
     },
     {
       "category": "掉期",
       "name": "TRS SOC GEN SGIXCWTI  06182026",
       "ticker": "SGIXCWTIT",
       "quantity": 977427.59,
-      "price": 122.6379,
-      "marketValue": 119869667.04,
-      "weight": 0.0518,
+      "price": 113.4377,
+      "marketValue": 110877137.73,
+      "weight": 0.05,
       "holdingType": "Swap",
-      "barrelEquivalent": 1342175.1991938194
+      "barrelEquivalent": 1342175.7381672922
     },
     {
       "category": "现金及等价物",
       "name": "DREY INST PREF GOV MM INST 6546",
       "ticker": "DSVXX",
-      "quantity": 878600000,
+      "quantity": 948100000,
       "price": 1,
-      "marketValue": 878600000,
-      "weight": 0.3796,
+      "marketValue": 948100000,
+      "weight": 0.4277,
       "holdingType": "Cash Equivalent",
       "barrelEquivalent": null
     },
@@ -85,10 +85,21 @@
       "category": "现金及等价物",
       "name": "MORGAN STANLEY LIQ GOVT INST 8302",
       "ticker": "MVRXX",
-      "quantity": 683600000,
+      "quantity": 753100000,
       "price": 1,
-      "marketValue": 683600000,
-      "weight": 0.2953,
+      "marketValue": 753100000,
+      "weight": 0.3397,
+      "holdingType": "Cash Equivalent",
+      "barrelEquivalent": null
+    },
+    {
+      "category": "现金及等价物",
+      "name": "BNY CASH RESERVE",
+      "ticker": "USD",
+      "quantity": 183526442.71,
+      "price": 1,
+      "marketValue": 183526442.71,
+      "weight": 0.0828,
       "holdingType": "Cash Equivalent",
       "barrelEquivalent": null
     },
@@ -96,73 +107,34 @@
       "category": "现金及等价物",
       "name": "US DOLLARS",
       "ticker": "US DOLLARS",
-      "quantity": 201656638.81,
+      "quantity": 100536500.1,
       "price": 1,
-      "marketValue": 201656638.81,
-      "weight": 0.0871,
+      "marketValue": 100536500.1,
+      "weight": 0.0453,
       "holdingType": "Cash",
-      "barrelEquivalent": null
-    },
-    {
-      "category": "现金及等价物",
-      "name": "BNY CASH RESERVE",
-      "ticker": "USD",
-      "quantity": 139849811.6,
-      "price": 1,
-      "marketValue": 139849811.6,
-      "weight": 0.0604,
-      "holdingType": "Cash Equivalent",
       "barrelEquivalent": null
     }
   ],
   "history": {
-    "dateFrom": "2021-07-26",
-    "dateTo": "2026-07-24",
-    "records": 1255,
+    "dateFrom": "2021-07-28",
+    "dateTo": "2026-07-27",
+    "records": 1254,
     "modelFrozenThrough": "2026-07-23",
     "modelReferenceDate": "2026-07-23",
     "modelFuturesBarrelsPerShare": 1.39001154,
     "officialArchiveStarts": "2026-07-23",
-    "officialDailyChanges": 1,
+    "officialDailyChanges": 2,
     "shareInferenceMaxResidual": 5341.53,
     "shareInferenceMaxResidualPctOfBasket": 0.05341528,
     "rows": [
-      {
-        "date": "2021-07-26",
-        "nav": 49.52,
-        "navChange": 0.01,
-        "navChangePct": 0.00020198,
-        "netAssets": 2882996195.23,
-        "netAssetsChange": 0,
-        "netAssetsChangePct": 0,
-        "sharesOutstandingEstimate": 58223603,
-        "sharesOutstandingChange": 0,
-        "futuresBarrelEquivalentEstimate": 80931480.05,
-        "futuresBarrelEquivalentChange": 0,
-        "changeBasis": "estimated"
-      },
-      {
-        "date": "2021-07-27",
-        "nav": 49.39,
-        "navChange": -0.13,
-        "navChangePct": -0.0026252,
-        "netAssets": 2865971150.65,
-        "netAssetsChange": -17025044.58,
-        "netAssetsChangePct": -0.00590533,
-        "sharesOutstandingEstimate": 58023603,
-        "sharesOutstandingChange": -200000,
-        "futuresBarrelEquivalentEstimate": 80653477.74,
-        "futuresBarrelEquivalentChange": -278002.31,
-        "changeBasis": "estimated"
-      },
       {
         "date": "2021-07-28",
         "nav": 49.83,
         "navChange": 0.44,
         "navChangePct": 0.00890869,
         "netAssets": 2891327546.86,
-        "netAssetsChange": 25356396.21,
-        "netAssetsChangePct": 0.0088474,
+        "netAssetsChange": 0,
+        "netAssetsChangePct": 0,
         "sharesOutstandingEstimate": 58023603,
         "sharesOutstandingChange": 0,
         "futuresBarrelEquivalentEstimate": 80653477.74,
@@ -17696,13 +17668,27 @@
         "futuresBarrelEquivalentEstimate": 24025000,
         "futuresBarrelEquivalentChange": 918000,
         "changeBasis": "official"
+      },
+      {
+        "date": "2026-07-27",
+        "nav": 125.79,
+        "navChange": -10.17,
+        "navChangePct": -0.07480141,
+        "netAssets": 2216906231.66,
+        "netAssetsChange": -97697609.6,
+        "netAssetsChangePct": -0.04220921,
+        "sharesOutstandingEstimate": 17623603,
+        "sharesOutstandingChange": 600000,
+        "futuresBarrelEquivalentEstimate": 23418000,
+        "futuresBarrelEquivalentChange": -607000,
+        "changeBasis": "official"
       }
     ]
   },
   "officialHistory": {
     "dateFrom": "2026-07-23",
-    "dateTo": "2026-07-24",
-    "records": 2,
+    "dateTo": "2026-07-27",
+    "records": 3,
     "rows": [
       {
         "date": "2026-07-23",
@@ -17765,6 +17751,38 @@
             "ticker": "SGIXCWTIT",
             "marketValue": 119869667.04,
             "barrelEquivalentEstimate": 1342175.2
+          }
+        ]
+      },
+      {
+        "date": "2026-07-27",
+        "fetchedAtUtc": "2026-07-28T02:53:25.992Z",
+        "source": "USCF official holdings",
+        "sharesOutstanding": 17623603,
+        "futuresBarrelEquivalent": 23418000,
+        "swapBarrelEquivalentEstimate": 2809242.06,
+        "oilBarrelEquivalent": 26227242.06,
+        "barrelEquivalentType": "official-futures-plus-estimated-swap",
+        "futuresPositions": [
+          {
+            "name": "WTI CRUDE FUTURE Sep26",
+            "ticker": "CLU6",
+            "contracts": 23418,
+            "barrels": 23418000
+          }
+        ],
+        "swapPositions": [
+          {
+            "name": "TRS MACQUARIE MQCP361E 07212026",
+            "ticker": "MQCP361ET",
+            "marketValue": 121194348.47,
+            "barrelEquivalentEstimate": 1467066.32
+          },
+          {
+            "name": "TRS SOC GEN SGIXCWTI  06182026",
+            "ticker": "SGIXCWTIT",
+            "marketValue": 110877137.73,
+            "barrelEquivalentEstimate": 1342175.74
           }
         ]
       }

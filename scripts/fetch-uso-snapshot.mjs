@@ -76,14 +76,31 @@ export function mergeHistoryWithOfficialArchive({
     preservedRows.map((row) => [row.date, row]),
   );
 
+  function mergePreservedModel(row, index) {
+    const preserved = preservedRowsByDate.get(row.date);
+    if (!preserved) return row;
+
+    return {
+      ...row,
+      sharesOutstandingEstimate: preserved.sharesOutstandingEstimate,
+      sharesOutstandingChange:
+        index === 0 ? 0 : preserved.sharesOutstandingChange,
+      futuresBarrelEquivalentEstimate:
+        preserved.futuresBarrelEquivalentEstimate,
+      futuresBarrelEquivalentChange:
+        index === 0 ? 0 : preserved.futuresBarrelEquivalentChange,
+      changeBasis: preserved.changeBasis,
+    };
+  }
+
   return freshModelRows.map((row, index, rows) => {
     if (row.date <= modelFrozenThrough) {
-      return preservedRowsByDate.get(row.date) ?? row;
+      return mergePreservedModel(row, index);
     }
 
     const observation = officialByDate.get(row.date);
     if (!observation) {
-      return preservedRowsByDate.get(row.date) ?? row;
+      return mergePreservedModel(row, index);
     }
 
     const previousDate = rows[index - 1]?.date;
@@ -306,11 +323,24 @@ async function buildFundSnapshot(config, token) {
     sharesOutstanding > 0
       ? futuresBarrelEquivalent / sharesOutstanding
       : 0;
-  const modelReferenceDate =
-    previousSnapshot?.fund?.asOfDate ?? asOfDate;
-  const modelFuturesBarrelsPerShare =
-    previousSnapshot?.current?.futuresBarrelsPerShare ??
-    futuresBarrelsPerShare;
+  const hasFrozenModel = previousSnapshot?.schemaVersion >= 3;
+  const modelFrozenThrough = hasFrozenModel
+    ? previousSnapshot.history.modelFrozenThrough
+    : asOfDate;
+  const modelReferenceDate = hasFrozenModel
+    ? modelFrozenThrough
+    : (previousSnapshot?.fund?.asOfDate ?? asOfDate);
+  const archivedModelReference =
+    previousSnapshot?.officialHistory?.rows?.find(
+      (row) => row.date === modelReferenceDate,
+    );
+  const modelFuturesBarrelsPerShare = archivedModelReference
+    ? archivedModelReference.futuresBarrelEquivalent /
+      archivedModelReference.sharesOutstanding
+    : hasFrozenModel
+      ? previousSnapshot.history.modelFuturesBarrelsPerShare
+      : (previousSnapshot?.current?.futuresBarrelsPerShare ??
+        futuresBarrelsPerShare);
   let priorSharesOutstandingEstimate = null;
   const freshModelRows = baseHistoryRows.map((row) => {
     const rawSharesOutstanding = row.netAssets / row.nav;
@@ -379,10 +409,6 @@ async function buildFundSnapshot(config, token) {
   const officialRows = Array.from(officialRowsByDate.values()).sort((a, b) =>
     a.date.localeCompare(b.date),
   );
-  const modelFrozenThrough =
-    previousSnapshot?.schemaVersion >= 3
-      ? previousSnapshot.history.modelFrozenThrough
-      : asOfDate;
   const historyRows = mergeHistoryWithOfficialArchive({
     freshModelRows,
     modelFrozenThrough,
