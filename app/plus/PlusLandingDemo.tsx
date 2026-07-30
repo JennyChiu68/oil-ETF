@@ -14,6 +14,8 @@ const previewRows = [
   { label: "前1日", direction: "down", width: 42 },
   { label: "前2日", direction: "up", width: 16 },
   { label: "前3日", direction: "down", width: 31 },
+  { label: "前4日", direction: "up", width: 37 },
+  { label: "前5日", direction: "down", width: 21 },
 ] as const;
 
 export function PlusLandingDemo() {
