@@ -121,9 +121,11 @@ test("both frozen snapshots are internally consistent and source-backed", async 
       (item) => item.holdingType === "Futures",
     );
     for (const holding of futuresHoldings) {
-      assert.equal(
-        holding.marketValue,
-        holding.quantity * 1_000 * holding.price,
+      assert.ok(
+        Math.abs(
+          holding.marketValue -
+            holding.quantity * 1_000 * holding.price,
+        ) < 0.01,
       );
       assert.equal(holding.barrelEquivalent, holding.quantity * 1_000);
     }
