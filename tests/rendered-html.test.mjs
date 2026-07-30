@@ -88,7 +88,7 @@ test("server-renders the production USO and BNO report", async () => {
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
 
-test("server-renders the Plus conversion demo with real fund data", async () => {
+test("server-renders the static masked Plus conversion demo", async () => {
   const response = await render("/plus");
   assert.equal(response.status, 200);
 
@@ -97,8 +97,15 @@ test("server-renders the Plus conversion demo with real fund data", async () => 
   assert.match(html, /看懂机构仓位，不只看油价涨跌/);
   assert.match(html, /每天多看一层机构持仓变化/);
   assert.match(html, /立即开通Plus/);
-  assert.match(html, /今日数据预览/);
+  assert.match(html, /会员页面预览/);
+  assert.match(html, /核心数据已遮盖/);
+  assert.match(html, /Plus内每日更新/);
+  assert.match(html, /当前名义原油敞口/);
   assert.match(html, /开通Plus查看完整数据/);
+  assert.doesNotMatch(
+    html,
+    /延迟1交易日|上一交易日|最新数据状态|功能效果预览/,
+  );
   assert.match(html, /最终权益与价格以正式会员页为准/);
 
   const usoSnapshot = JSON.parse(
@@ -107,13 +114,16 @@ test("server-renders the Plus conversion demo with real fund data", async () => 
       "utf8",
     ),
   );
-  const exposure = (
+  const currentExposure = (
     usoSnapshot.current.oilBarrelEquivalent / 10_000
   ).toLocaleString("zh-CN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  assert.ok(html.includes(exposure));
+  assert.ok(
+    !html.includes(currentExposure),
+    "Plus静态介绍页不得在HTML中暴露正式工具的准确持仓值",
+  );
 });
 
 test("both frozen snapshots are internally consistent and source-backed", async () => {

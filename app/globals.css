@@ -2998,6 +2998,23 @@ select:focus-visible {
   font-size: 12px;
 }
 
+.plus-j-headline-masked > strong i {
+  display: inline-block;
+  min-width: 126px;
+  overflow: hidden;
+  color: var(--plus-j-blue);
+  font-style: normal;
+  letter-spacing: 0.08em;
+  filter: blur(4px);
+  user-select: none;
+}
+
+.plus-j-concealed {
+  letter-spacing: 0.04em;
+  filter: blur(3.5px);
+  user-select: none;
+}
+
 .plus-j-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -2,67 +2,23 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import oilHero from "@/public/oil-hero-barrel.png";
-import vipBadge from "@/public/vip-badge.svg";
+import { useEffect, useState } from "react";
+
+const oilHero = "/oil-hero-barrel.png";
+const vipBadge = "/vip-badge.svg";
 
 type FundSymbol = "USO" | "BNO";
 
-export type PlusPreviewFund = {
-  symbol: string;
-  benchmark: string;
-  benchmarkZh: string;
-  asOfDate: string;
-  totalBarrels: number;
-  futuresBarrels: number;
-  swapBarrels: number;
-  latestChange: number;
-  nav: number;
-  rows: Array<{
-    date: string;
-    change: number;
-  }>;
-};
+const previewRows = [
+  { label: "最新日", direction: "up", width: 28 },
+  { label: "前1日", direction: "down", width: 42 },
+  { label: "前2日", direction: "up", width: 16 },
+  { label: "前3日", direction: "down", width: 31 },
+] as const;
 
-type PlusLandingDemoProps = {
-  funds: Record<FundSymbol, PlusPreviewFund>;
-};
-
-function formatWanBarrels(value: number, digits = 2) {
-  return `${(value / 10_000).toLocaleString("zh-CN", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  })}`;
-}
-
-function formatSignedWanBarrels(value: number) {
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${formatWanBarrels(value, 2)}万桶`;
-}
-
-function formatDate(date: string) {
-  const [year, month, day] = date.split("-");
-  return `${year}.${month}.${day}`;
-}
-
-function formatShortDate(date: string) {
-  const [, month, day] = date.split("-");
-  return `${Number(month)}月${Number(day)}日`;
-}
-
-export function PlusLandingDemo({ funds }: PlusLandingDemoProps) {
+export function PlusLandingDemo() {
   const [activeSymbol, setActiveSymbol] = useState<FundSymbol>("USO");
   const [showCheckout, setShowCheckout] = useState(false);
-  const activeFund = funds[activeSymbol];
-
-  const maxChange = useMemo(
-    () =>
-      Math.max(
-        ...activeFund.rows.slice(0, 4).map((row) => Math.abs(row.change)),
-        1,
-      ),
-    [activeFund],
-  );
 
   useEffect(() => {
     if (!showCheckout) return;
@@ -105,6 +61,7 @@ export function PlusLandingDemo({ funds }: PlusLandingDemoProps) {
           width={144}
           height={144}
           priority
+          unoptimized
           alt=""
         />
         <div className="plus-j-fund-switch" role="tablist" aria-label="原油品种切换">
@@ -134,16 +91,16 @@ export function PlusLandingDemo({ funds }: PlusLandingDemoProps) {
       <section className="plus-j-preview">
         <div className="plus-j-preview-heading">
           <div>
-            <span>今日数据预览</span>
-            <small>截至 {formatDate(activeFund.asOfDate)}</small>
+            <span>会员页面预览</span>
+            <small>核心数据已遮盖 · Plus内每日更新</small>
           </div>
-          <strong>{activeFund.symbol}</strong>
+          <strong>{activeSymbol}</strong>
         </div>
 
-        <div className="plus-j-headline">
+        <div className="plus-j-headline plus-j-headline-masked">
           <span>当前名义原油敞口</span>
-          <strong>
-            {formatWanBarrels(activeFund.totalBarrels)}
+          <strong aria-label="数据已遮盖">
+            <i>••••••</i>
             <small>万桶等值</small>
           </strong>
         </div>
@@ -151,17 +108,15 @@ export function PlusLandingDemo({ funds }: PlusLandingDemoProps) {
         <div className="plus-j-metrics">
           <article>
             <span>期货桶等值</span>
-            <strong>{formatWanBarrels(activeFund.futuresBarrels, 1)}万</strong>
+            <strong className="plus-j-concealed">••••万</strong>
           </article>
           <article>
             <span>最新持仓变化</span>
-            <strong className={activeFund.latestChange >= 0 ? "up" : "down"}>
-              {formatSignedWanBarrels(activeFund.latestChange)}
-            </strong>
+            <strong className="plus-j-concealed up">+•••万桶</strong>
           </article>
           <article>
             <span>单位净值</span>
-            <strong>${activeFund.nav.toFixed(2)}</strong>
+            <strong className="plus-j-concealed">$•••</strong>
           </article>
         </div>
 
@@ -171,30 +126,27 @@ export function PlusLandingDemo({ funds }: PlusLandingDemoProps) {
             <span>按桶</span>
           </div>
           <div className="plus-j-zero" aria-hidden="true" />
-          {activeFund.rows.slice(0, 4).map((row, index) => {
-            const isPositive = row.change >= 0;
-            const width = Math.max((Math.abs(row.change) / maxChange) * 42, 2);
-            return (
-              <div
-                className={`plus-j-chart-row ${index > 1 ? "locked" : ""}`}
-                key={`${activeSymbol}-${row.date}`}
-              >
-                <span>{formatShortDate(row.date)}</span>
-                <div>
-                  <i
-                    className={isPositive ? "up" : "down"}
-                    style={{
-                      width: `${width}%`,
-                      left: isPositive ? "50%" : `${50 - width}%`,
-                    }}
-                  />
-                </div>
-                <strong className={isPositive ? "up" : "down"}>
-                  {formatSignedWanBarrels(row.change)}
-                </strong>
+          {previewRows.map((row, index) => (
+            <div
+              className={`plus-j-chart-row ${index > 1 ? "locked" : ""}`}
+              key={`${activeSymbol}-${row.label}`}
+            >
+              <span>{row.label}</span>
+              <div>
+                <i
+                  className={row.direction}
+                  style={{
+                    width: `${row.width}%`,
+                    left:
+                      row.direction === "up" ? "50%" : `${50 - row.width}%`,
+                  }}
+                />
               </div>
-            );
-          })}
+              <strong className={`plus-j-concealed ${row.direction}`}>
+                {row.direction === "up" ? "+" : "-"}•••万桶
+              </strong>
+            </div>
+          ))}
           <button
             className="plus-j-lock"
             type="button"
@@ -203,7 +155,7 @@ export function PlusLandingDemo({ funds }: PlusLandingDemoProps) {
             <span className="plus-j-lock-icon" aria-hidden="true" />
             <span>
               <strong>开通Plus查看完整数据</strong>
-              <small>完整日变化 · 五年历史 · 持仓结构</small>
+              <small>每日更新 · 完整日变化 · 五年历史</small>
             </span>
           </button>
         </div>
