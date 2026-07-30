@@ -3,13 +3,13 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { mergeHistoryWithOfficialArchive } from "../scripts/fetch-uso-snapshot.mjs";
 
-async function render() {
+async function render(pathname = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("https://oil-etf-report.example/", {
+    new Request(`https://oil-etf-report.example${pathname}`, {
       headers: {
         accept: "text/html",
         host: "oil-etf-report.example",
@@ -86,6 +86,34 @@ test("server-renders the production USO and BNO report", async () => {
     /https:\/\/oil-etf-report\.example\/og\.png/,
   );
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
+});
+
+test("server-renders the Plus conversion demo with real fund data", async () => {
+  const response = await render("/plus");
+  assert.equal(response.status, 200);
+
+  const html = await response.text();
+  assert.match(html, /原油ETF持仓报告 Plus｜会员权益介绍/);
+  assert.match(html, /看懂机构仓位，不只看油价涨跌/);
+  assert.match(html, /每天多看一层机构持仓变化/);
+  assert.match(html, /立即开通Plus/);
+  assert.match(html, /今日数据预览/);
+  assert.match(html, /开通Plus查看完整数据/);
+  assert.match(html, /最终权益与价格以正式会员页为准/);
+
+  const usoSnapshot = JSON.parse(
+    await readFile(
+      new URL("../public/data/uso-snapshot.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const exposure = (
+    usoSnapshot.current.oilBarrelEquivalent / 10_000
+  ).toLocaleString("zh-CN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  assert.ok(html.includes(exposure));
 });
 
 test("both frozen snapshots are internally consistent and source-backed", async () => {
