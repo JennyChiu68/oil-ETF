@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "generatedAtUtc": "2026-08-04T02:15:39.937Z",
+  "generatedAtUtc": "2026-08-05T02:00:42.780Z",
   "fund": {
     "symbol": "BNO",
     "name": "United States Brent Oil Fund, LP",
@@ -8,32 +8,32 @@
     "sponsor": "United States Commodity Funds, LLC",
     "exchange": "NYSE Arca",
     "inceptionDate": "2010-06-02",
-    "asOfDate": "2026-08-03",
+    "asOfDate": "2026-08-04",
     "benchmark": "Brent",
     "benchmarkZh": "Brent原油",
     "contractVenue": "ICE Futures Europe"
   },
   "current": {
-    "nav": 47.86,
-    "navChange": -2.37,
-    "navChangePct": -0.0472,
-    "netAssets": 586266212.16,
-    "sharesOutstanding": 12250000,
+    "nav": 45.34,
+    "navChange": -2.52,
+    "navChangePct": -0.0527,
+    "netAssets": 562240032.22,
+    "sharesOutstanding": 12400000,
     "sharesCreatedRedeemed": 150000,
-    "marketPrice": 47.82,
-    "premiumDiscountPct": -0.0008,
-    "bid": 47.81,
-    "ask": 47.83,
-    "oilBarrelEquivalent": 7085000,
-    "futuresBarrelEquivalent": 7085000,
+    "marketPrice": 45.33,
+    "premiumDiscountPct": -0.0002,
+    "bid": 45.32,
+    "ask": 45.33,
+    "oilBarrelEquivalent": 7171000,
+    "futuresBarrelEquivalent": 7171000,
     "swapBarrelEquivalent": 0,
-    "futuresReferencePrice": 83.77,
-    "barrelsPerShare": 0.57836735,
-    "futuresBarrelsPerShare": 0.57836735,
+    "futuresReferencePrice": 79.36,
+    "barrelsPerShare": 0.57830645,
+    "futuresBarrelsPerShare": 0.57830645,
     "creationBasketShares": 50000,
-    "oilNotional": 593510450,
-    "oilExposurePctOfNav": 1.0124,
-    "collateralValue": 618537291.53,
+    "oilNotional": 569090560,
+    "oilExposurePctOfNav": 1.0122,
+    "collateralValue": 626141588.23,
     "barrelEquivalentType": "contractual"
   },
   "holdings": [
@@ -41,12 +41,12 @@
       "category": "期货",
       "name": "BRENT CRUDE FUTR Oct26",
       "ticker": "COV6",
-      "quantity": 7085,
-      "price": 83.77,
-      "marketValue": 593510450,
-      "weight": 1.0124,
+      "quantity": 7171,
+      "price": 79.36,
+      "marketValue": 569090560,
+      "weight": 1.0122,
       "holdingType": "Futures",
-      "barrelEquivalent": 7085000
+      "barrelEquivalent": 7171000
     },
     {
       "category": "现金及等价物",
@@ -55,7 +55,7 @@
       "quantity": 266500000,
       "price": 1,
       "marketValue": 266500000,
-      "weight": 0.4546,
+      "weight": 0.474,
       "holdingType": "Cash Equivalent",
       "barrelEquivalent": null
     },
@@ -63,10 +63,10 @@
       "category": "现金及等价物",
       "name": "US DOLLARS",
       "ticker": "US DOLLARS",
-      "quantity": 180690184.88,
+      "quantity": 188294481.58,
       "price": 1,
-      "marketValue": 180690184.88,
-      "weight": 0.3082,
+      "marketValue": 188294481.58,
+      "weight": 0.3349,
       "holdingType": "Cash",
       "barrelEquivalent": null
     },
@@ -77,7 +77,7 @@
       "quantity": 143700000,
       "price": 1,
       "marketValue": 143700000,
-      "weight": 0.2451,
+      "weight": 0.2556,
       "holdingType": "Cash Equivalent",
       "barrelEquivalent": null
     },
@@ -88,45 +88,31 @@
       "quantity": 27647106.65,
       "price": 1,
       "marketValue": 27647106.65,
-      "weight": 0.0472,
+      "weight": 0.0492,
       "holdingType": "Cash Equivalent",
       "barrelEquivalent": null
     }
   ],
   "history": {
-    "dateFrom": "2021-08-04",
-    "dateTo": "2026-08-03",
+    "dateFrom": "2021-08-05",
+    "dateTo": "2026-08-04",
     "records": 1254,
     "modelFrozenThrough": "2026-07-23",
     "modelReferenceDate": "2026-07-23",
     "modelFuturesBarrelsPerShare": 0.58633205,
     "officialArchiveStarts": "2026-07-23",
-    "officialDailyChanges": 7,
+    "officialDailyChanges": 8,
     "shareInferenceMaxResidual": 3785.94,
     "shareInferenceMaxResidualPctOfBasket": 0.07571877,
     "rows": [
-      {
-        "date": "2021-08-04",
-        "nav": 18.28,
-        "navChange": -0.53,
-        "navChangePct": -0.0281765,
-        "netAssets": 264176660.53,
-        "netAssetsChange": 0,
-        "netAssetsChangePct": 0,
-        "sharesOutstandingEstimate": 14450000,
-        "sharesOutstandingChange": 0,
-        "futuresBarrelEquivalentEstimate": 8472498.07,
-        "futuresBarrelEquivalentChange": 0,
-        "changeBasis": "estimated"
-      },
       {
         "date": "2021-08-05",
         "nav": 18.52,
         "navChange": 0.24,
         "navChangePct": 0.0131291,
         "netAssets": 267585947.25,
-        "netAssetsChange": 3409286.72,
-        "netAssetsChangePct": 0.01290533,
+        "netAssetsChange": 0,
+        "netAssetsChangePct": 0,
         "sharesOutstandingEstimate": 14450000,
         "sharesOutstandingChange": 0,
         "futuresBarrelEquivalentEstimate": 8472498.07,
@@ -17660,13 +17646,27 @@
         "futuresBarrelEquivalentEstimate": 7085000,
         "futuresBarrelEquivalentChange": 86000,
         "changeBasis": "official"
+      },
+      {
+        "date": "2026-08-04",
+        "nav": 45.34,
+        "navChange": -2.52,
+        "navChangePct": -0.05265357,
+        "netAssets": 562240032.22,
+        "netAssetsChange": -24026179.94,
+        "netAssetsChangePct": -0.04098169,
+        "sharesOutstandingEstimate": 12400000,
+        "sharesOutstandingChange": 150000,
+        "futuresBarrelEquivalentEstimate": 7171000,
+        "futuresBarrelEquivalentChange": 86000,
+        "changeBasis": "official"
       }
     ]
   },
   "officialHistory": {
     "dateFrom": "2026-07-23",
-    "dateTo": "2026-08-03",
-    "records": 8,
+    "dateTo": "2026-08-04",
+    "records": 9,
     "rows": [
       {
         "date": "2026-07-23",
@@ -17816,6 +17816,25 @@
             "ticker": "COV6",
             "contracts": 7085,
             "barrels": 7085000
+          }
+        ],
+        "swapPositions": []
+      },
+      {
+        "date": "2026-08-04",
+        "fetchedAtUtc": "2026-08-05T02:00:42.780Z",
+        "source": "USCF official holdings",
+        "sharesOutstanding": 12400000,
+        "futuresBarrelEquivalent": 7171000,
+        "swapBarrelEquivalentEstimate": 0,
+        "oilBarrelEquivalent": 7171000,
+        "barrelEquivalentType": "official-futures",
+        "futuresPositions": [
+          {
+            "name": "BRENT CRUDE FUTR Oct26",
+            "ticker": "COV6",
+            "contracts": 7171,
+            "barrels": 7171000
           }
         ],
         "swapPositions": []
