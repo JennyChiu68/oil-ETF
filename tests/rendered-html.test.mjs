@@ -71,7 +71,31 @@ test("server-renders the production USO and BNO report", async () => {
       html.indexOf("<h2>当前持仓</h2>"),
     "持仓变化应排在当前持仓之前",
   );
-  assert.match(html, /2026年9月到期/);
+  const primaryFutures = usoSnapshot.holdings
+    .filter((holding) => holding.holdingType === "Futures")
+    .sort((a, b) => b.quantity - a.quantity)[0];
+  const expiryMatch = primaryFutures.name.match(
+    /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)(\d{2})\b/i,
+  );
+  assert.ok(expiryMatch, "官方主力合约名称应包含到期月份");
+  const expiryMonth = [
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "may",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "oct",
+    "nov",
+    "dec",
+  ].indexOf(expiryMatch[1].toLowerCase().replace("sept", "sep")) + 1;
+  assert.ok(
+    html.includes(`20${expiryMatch[2]}年${expiryMonth}月到期`),
+    "页面应显示最新官方主力合约的到期月份",
+  );
   assert.match(html, /原油敞口构成/);
   assert.match(html, /查看合约明细/);
   assert.doesNotMatch(html, /原油相关名义市值/);
